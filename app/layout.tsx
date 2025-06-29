@@ -25,10 +25,15 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <div className="flex h-screen overflow-hidden">
-            <Sidebar />
+            {/* Desktop sidebar */}
+            <div className="hidden md:flex">
+              <Sidebar />
+            </div>
             <div className="flex flex-col flex-1 overflow-hidden">
               <Header />
-              <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background">{children}</main>
+              <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background p-2 sm:p-4 md:p-6 lg:p-8">
+                {children}
+              </main>
             </div>
           </div>
           <Toaster position="top-right" />

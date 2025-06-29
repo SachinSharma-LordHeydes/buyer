@@ -104,12 +104,12 @@ export function Sidebar() {
   const isExpanded = (title: string) => expandedItems.includes(title)
 
   return (
-    <div className="pb-12 w-64 bg-card border-r">
+    <div className="pb-12 w-full md:w-64 bg-card border-r h-full">
       <div className="space-y-4 py-4">
         <div className="px-3 py-2">
           <div className="flex items-center mb-2">
-            <Store className="h-6 w-6 mr-2" />
-            <h2 className="text-lg font-semibold">Seller Hub</h2>
+            <Store className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
+            <h2 className="text-base sm:text-lg font-semibold">Seller Hub</h2>
           </div>
         </div>
         <div className="px-3">
@@ -121,15 +121,15 @@ export function Sidebar() {
                     <div>
                       <Button
                         variant="ghost"
-                        className="w-full justify-start"
+                        className="w-full justify-start text-sm p-2"
                         onClick={() => toggleExpanded(item.title)}
                       >
-                        <item.icon className="mr-2 h-4 w-4" />
-                        {item.title}
+                        <item.icon className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="truncate">{item.title}</span>
                         {isExpanded(item.title) ? (
-                          <ChevronDown className="ml-auto h-4 w-4" />
+                          <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
                         ) : (
-                          <ChevronRight className="ml-auto h-4 w-4" />
+                          <ChevronRight className="ml-auto h-4 w-4 shrink-0" />
                         )}
                       </Button>
                       {isExpanded(item.title) && (
@@ -140,9 +140,11 @@ export function Sidebar() {
                               asChild
                               variant={pathname === child.href ? "secondary" : "ghost"}
                               size="sm"
-                              className="w-full justify-start"
+                              className="w-full justify-start text-xs p-2"
                             >
-                              <Link href={child.href}>{child.title}</Link>
+                              <Link href={child.href}>
+                                <span className="truncate">{child.title}</span>
+                              </Link>
                             </Button>
                           ))}
                         </div>
@@ -152,11 +154,11 @@ export function Sidebar() {
                     <Button
                       asChild
                       variant={pathname === item.href ? "secondary" : "ghost"}
-                      className="w-full justify-start"
+                      className="w-full justify-start text-sm p-2"
                     >
                       <Link href={item.href}>
-                        <item.icon className="mr-2 h-4 w-4" />
-                        {item.title}
+                        <item.icon className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="truncate">{item.title}</span>
                       </Link>
                     </Button>
                   )}

@@ -41,101 +41,107 @@ const products = [
 
 export default function ProductsPage() {
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Products</h2>
+    <div className="flex-1 space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Products</h2>
         <div className="flex items-center space-x-2">
-          <Button asChild>
+          <Button asChild size="sm">
             <Link href="/products/add">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Product
+              <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="text-xs sm:text-sm">Add Product</span>
             </Link>
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search products..." className="pl-8" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+          <Input placeholder="Search products..." className="pl-8 text-sm" />
         </div>
-        <Button variant="outline" size="sm">
-          <Filter className="mr-2 h-4 w-4" />
-          Filter
-        </Button>
-        <Button variant="outline" size="sm">
-          <Download className="mr-2 h-4 w-4" />
-          Export
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm bg-transparent">
+            <Filter className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            Filter
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm bg-transparent">
+            <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Product Inventory</CardTitle>
-          <CardDescription>Manage your product catalog and inventory.</CardDescription>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Product Inventory</CardTitle>
+          <CardDescription className="text-sm">Manage your product catalog and inventory.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name}
-                        className="h-10 w-10 rounded-md object-cover"
-                      />
-                      <div>
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-sm text-muted-foreground">{product.id}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono">{product.sku}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell className="font-medium">{product.price}</TableCell>
-                  <TableCell>
-                    <span className={product.stock === 0 ? "text-red-600" : ""}>{product.stock}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        product.status === "active"
-                          ? "default"
-                          : product.status === "out_of_stock"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                    >
-                      {product.status.replace("_", " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[150px] text-xs sm:text-sm">Product</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs sm:text-sm">SKU</TableHead>
+                  <TableHead className="hidden md:table-cell text-xs sm:text-sm">Category</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Price</TableHead>
+                  <TableHead className="hidden sm:table-cell text-xs sm:text-sm">Stock</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-2 sm:space-x-3">
+                        <img
+                          src={product.image || "/placeholder.svg"}
+                          alt={product.name}
+                          className="h-8 w-8 sm:h-10 sm:w-10 rounded-md object-cover"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium text-xs sm:text-sm truncate">{product.name}</div>
+                          <div className="text-xs text-muted-foreground sm:hidden">{product.sku}</div>
+                          <div className="text-xs text-muted-foreground md:hidden">{product.category}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell font-mono text-xs sm:text-sm">{product.sku}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs sm:text-sm">{product.category}</TableCell>
+                    <TableCell className="font-medium text-xs sm:text-sm">{product.price}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-xs sm:text-sm">
+                      <span className={product.stock === 0 ? "text-red-600" : ""}>{product.stock}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          product.status === "active"
+                            ? "default"
+                            : product.status === "out_of_stock"
+                              ? "destructive"
+                              : "secondary"
+                        }
+                        className="text-xs"
+                      >
+                        {product.status.replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-1">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                          <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
