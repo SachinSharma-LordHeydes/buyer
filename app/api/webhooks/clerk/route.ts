@@ -126,6 +126,44 @@ export async function POST(req: Request) {
         return new Response("Error processing user data", { status: 500 });
       }
       break;
+      
+    case "user.deleted":
+      try {
+        const { id } = event.data;
+        console.log("Processing user deletion:", { clerkId: id });
+        
+        // Find and delete the user and related data
+        const user = await prisma.user.findUnique({
+          where: { clerkId: id },
+          include: {
+            profile: true
+          }
+        });
+        
+        if (user) {
+          // Delete profile first if it exists (due to foreign key constraints)
+          if (user.profile) {
+            await prisma.profile.delete({
+              where: { userId: user.id }
+            });
+            console.log("Deleted user profile for clerkId:", id);
+          }
+          
+          // Delete the user
+          await prisma.user.delete({
+            where: { clerkId: id }
+          });
+          console.log("Deleted user for clerkId:", id);
+        } else {
+          console.log("User not found for deletion, clerkId:", id);
+        }
+        
+      } catch (err) {
+        console.error("Error processing user deletion:", err);
+        return new Response("Error processing user deletion", { status: 500 });
+      }
+      break;
+      
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }

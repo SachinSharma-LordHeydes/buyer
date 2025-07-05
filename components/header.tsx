@@ -14,18 +14,40 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Bell, Menu, Moon, Search, Sun } from "lucide-react"
+import { useClerk, useUser } from "@clerk/nextjs"
+import { Bell, LogOut, Menu, Moon, Search, Sun, User, Settings } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
   const [mounted, setMounted] = useState(false);
+  const { signOut } = useClerk();
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push("/sign-in");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  // Get user initials for avatar fallback
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const firstName = user.firstName || "";
+    const lastName = user.lastName || "";
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user.emailAddresses[0]?.emailAddress.charAt(0).toUpperCase() || "U";
+  };
 
   return (
     <header className="flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-2 sm:px-4 lg:h-[60px] lg:px-6">
@@ -79,20 +101,47 @@ export function Header() {
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full h-8 w-8 shrink-0">
             <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder-user.jpg" alt="Avatar" />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarImage 
+                src={user?.imageUrl || "/placeholder-user.jpg"} 
+                alt={user?.fullName || "Avatar"} 
+              />
+              <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
             <span className="sr-only">Toggle user menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">
+                {user?.fullName || "User"}
+              </p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {user?.emailAddresses[0]?.emailAddress || ""}
+              </p>
+            </div>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem>Store Settings</DropdownMenuItem>
-          <DropdownMenuItem>Billing</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/profile")}>
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/store-settings")}>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Store Settings</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/billing")}>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Billing</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Logout</DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={handleSignOut}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Logout</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

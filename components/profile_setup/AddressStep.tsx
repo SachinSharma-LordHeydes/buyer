@@ -261,13 +261,13 @@ const AddressStep = ({
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <MapPin className="w-8 h-8 text-green-600" />
+        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <MapPin className="w-8 h-8 text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">
           Address Details
         </h2>
-        <p className="text-gray-600">
+        <p className="text-gray-500">
           Please provide both your temporary and permanent addresses
         </p>
       </div>
@@ -357,7 +357,7 @@ const AddressStep = ({
         </Button>
         <Button
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 flex items-center space-x-2"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 flex items-center space-x-2"
         >
           <span>Continue</span>
           <ChevronRight className="w-4 h-4" />

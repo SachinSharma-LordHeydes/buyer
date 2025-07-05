@@ -52,11 +52,11 @@ const StoreAddressStep = ({ data, onUpdate, onNext, onPrevious }: StoreAddressSt
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Store className="w-8 h-8 text-orange-600" />
+        <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Store className="w-8 h-8 text-cyan-600" />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Store Address</h2>
-        <p className="text-gray-600">Where is your store located?</p>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">Store Address</h2>
+        <p className="text-gray-500">Where is your store located?</p>
       </div>
 
       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
@@ -179,7 +179,7 @@ const StoreAddressStep = ({ data, onUpdate, onNext, onPrevious }: StoreAddressSt
         </Button>
         <Button 
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 flex items-center space-x-2"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-2 flex items-center space-x-2"
         >
           <span>Continue</span>
           <ChevronRight className="w-4 h-4" />

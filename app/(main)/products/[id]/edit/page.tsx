@@ -385,7 +385,6 @@ export default function EditProductPage() {
     }
   };
 
-  // const handleSave = async () => {
   //   if (!validateStep(currentStep)) return;
 
   //   setIsLoading(true);
@@ -600,22 +599,6 @@ export default function EditProductPage() {
       }
     }
   };
-
-  // const addFeature = () => {
-  //   if (newFeature.trim()) {
-  //     const newFeatures = [
-  //       ...formData.features,
-  //       { feature: newFeature.trim(), value: "" },
-  //     ];
-  //     updateFormData("features", newFeatures);
-  //     setNewFeature("");
-  //   }
-  // };
-
-  // const removeFeature = (index: number) => {
-  //   const newFeatures = formData.features.filter((_, i) => i !== index);
-  //   updateFormData("features", newFeatures);
-  // };
 
   const removeImage = (index: number) => {
     const newImages = formData.images.filter((_, i) => i !== index);

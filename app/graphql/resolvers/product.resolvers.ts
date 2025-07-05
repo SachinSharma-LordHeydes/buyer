@@ -280,153 +280,6 @@ export const productResolvers = {
       }, "Failed to create product");
     },
 
-    // updateProduct: async (
-    //   _: any,
-    //   { id, input }: { id: string; input: any },
-    //   context: GraphQLContext
-    // ) => {
-    //   return handleAsyncErrors(async () => {
-    //     await requireProductOwnership(context, id);
-
-    //     console.log("input for updateProduct:", input);
-
-    //     if (Object.keys(input).length === 0) {
-    //       throw new Error('At least one field must be provided for update');
-    //     }
-
-    //     // Validate only provided fields
-    //     if (input.price !== undefined && input.price <= 0) {
-    //       throw new Error('Price must be greater than 0');
-    //     }
-    //     if (input.stock !== undefined && input.stock < 0) {
-    //       throw new Error('Stock cannot be negative');
-    //     }
-
-    //     const updatedProduct = await context.prisma.$transaction(async (tx) => {
-    //       // Update basic product fields
-    //       const updateData: any = {};
-    //       if (input.name) updateData.name = input.name.trim();
-    //       if (input.description !== undefined) updateData.description = input.description?.trim() || null;
-    //       if (input.price !== undefined) updateData.price = input.price;
-    //       if (input.sku !== undefined) updateData.sku = input.sku?.trim() || null;
-    //       if (input.stock !== undefined) updateData.stock = input.stock;
-    //       if (input.status) updateData.status = input.status;
-
-    //       const product = await tx.product.update({
-    //         where: { id },
-    //         data: updateData
-    //       });
-
-    //       // Update images if provided
-    //       if (input.images) {
-    //         // Delete existing images
-    //         await tx.productImage.deleteMany({
-    //           where: { productId: id }
-    //         });
-
-    //         // Create new images
-    //         if (input.images.length > 0) {
-    //           await tx.productImage.createMany({
-    //             data: input.images.map((img: any, index: number) => ({
-    //               productId: id,
-    //               url: img.url,
-    //               altText: img.altText || null,
-    //               isPrimary: img.isPrimary || index === 0
-    //             }))
-    //           });
-    //         }
-    //       }
-
-    //       // Update videos if provided
-    //       if (input.videos) {
-    //         // Delete existing videos
-    //         await tx.productVideo.deleteMany({
-    //           where: { productId: id }
-    //         });
-
-    //         // Create new videos
-    //         if (input.videos.length > 0) {
-    //           // Validate videos have required fields
-    //           const validVideos = input.videos.filter((video: any) =>
-    //             video.url && video.url.trim() && video.publicId && video.publicId.trim()
-    //           );
-
-    //           if (validVideos.length > 0) {
-    //             await tx.productVideo.createMany({
-    //               data: validVideos.map((video: any) => ({
-    //                 productId: id,
-    //                 url: video.url.trim(),
-    //                 publicId: video.publicId.trim()
-    //               }))
-    //             });
-    //           }
-    //         }
-    //       }
-
-    //       // Update features if provided
-    //       if (input.features) {
-    //         // Delete existing features
-    //         await tx.productFeature.deleteMany({
-    //           where: { productId: id }
-    //         });
-
-    //         // Create new features
-    //         if (input.features.length > 0) {
-    //           await tx.productFeature.createMany({
-    //             data: input.features.map((feature: any) => ({
-    //               productId: id,
-    //               feature: feature.feature,
-    //               value: feature.value || null
-    //             }))
-    //           });
-    //         }
-    //       }
-
-    //       // Update categories if provided
-    //       if (input.categories) {
-    //         // Delete existing category associations
-    //         await tx.productCategory.deleteMany({
-    //           where: { productId: id }
-    //         });
-
-    //         // Create new category associations
-    //         if (input.categories.length > 0) {
-    //           await tx.productCategory.createMany({
-    //             data: input.categories.map((categoryId: string) => ({
-    //               productId: id,
-    //               categoryId
-    //             }))
-    //           });
-    //         }
-    //       }
-
-    //       return product;
-    //     });
-
-    //     // Fetch the complete updated product
-    //     const product = await context.prisma.product.findUnique({
-    //       where: { id },
-    //       include: {
-    //         images: {
-    //           orderBy: { isPrimary: 'desc' }
-    //         },
-    //         videos: true,
-    //         features: true,
-    //         categories: {
-    //           include: {
-    //             category: true
-    //           }
-    //         }
-    //       }
-    //     });
-
-    //     return {
-    //       success: true,
-    //       message: 'Product updated successfully',
-    //       product
-    //     };
-    //   }, 'Failed to update product');
-    // },
     updateProduct: async (
       _: any,
       { id, input }: { id: string; input: any },
@@ -495,7 +348,8 @@ export const productResolvers = {
 
         console.log("cleaned input:", cleanInput);
 
-        const updatedProduct = await context.prisma.$transaction(async (tx) => {
+        const updatedProduct = await context.prisma.$transaction(
+          async (tx) => {
           // Update basic product fields
           const updateData: any = {};
           if (cleanInput.name) updateData.name = cleanInput.name.trim();
@@ -627,32 +481,6 @@ export const productResolvers = {
         };
       }, "Failed to update product");
     },
-
-   
-    //   _: any,
-    //   { id }: { id: string },
-    //   context: GraphQLContext
-    // ) => {
-    //   return handleAsyncErrors(async () => {
-    //     await requireProductOwnership(context, id);
-
-    //     await context.prisma.$transaction(async (tx) => {
-    //       // Delete related records first
-    //       await tx.productImage.deleteMany({ where: { productId: id } });
-    //       await tx.productVideo.deleteMany({ where: { productId: id } });
-    //       await tx.productFeature.deleteMany({ where: { productId: id } });
-    //       await tx.productCategory.deleteMany({ where: { productId: id } });
-
-    //       // Delete the product
-    //       await tx.product.delete({ where: { id } });
-    //     });
-
-    //     return {
-    //       success: true,
-    //       message: "Product deleted successfully",
-    //     };
-    //   }, "Failed to delete product");
-    // },
 
     deleteProduct: async (
       _: any,

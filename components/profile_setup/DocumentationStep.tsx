@@ -60,11 +60,11 @@ const DocumentationStep = ({ data, onUpdate, onNext, onPrevious }: Documentation
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <FileText className="w-8 h-8 text-orange-600" />
+        <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FileText className="w-8 h-8 text-amber-600" />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Documentation</h2>
-        <p className="text-gray-600">Legal verification for your seller account</p>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">Documentation</h2>
+        <p className="text-gray-500">Legal verification for your seller account</p>
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -132,7 +132,7 @@ const DocumentationStep = ({ data, onUpdate, onNext, onPrevious }: Documentation
         </Button>
         <Button 
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 flex items-center space-x-2"
+          className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-2 flex items-center space-x-2"
         >
           <span>Continue</span>
           <ChevronRight className="w-4 h-4" />

@@ -61,13 +61,13 @@ const PersonalDetailsStep = ({
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <User className="w-8 h-8 text-blue-600" />
+        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <User className="w-8 h-8 text-teal-600" />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">
           Personal Information
         </h2>
-        <p className="text-gray-600">Tell us about yourself to get started</p>
+        <p className="text-gray-500">Tell us about yourself to get started</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -150,7 +150,7 @@ const PersonalDetailsStep = ({
       <div className="flex justify-end pt-6">
         <Button
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+          className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-2 rounded-lg flex items-center space-x-2 transition-colors"
         >
           <span>Continue</span>
           <ChevronRight className="w-4 h-4" />

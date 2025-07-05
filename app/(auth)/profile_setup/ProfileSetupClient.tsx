@@ -197,27 +197,27 @@ export default function ProfileSetupClient() {
   const progressPercentage = (currentStep / steps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-indigo-50 py-8">
+      <div className="container mx-auto px-4 max-w-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Complete Your Profile
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-500">
             Set up your seller profile in just a few simple steps
           </p>
         </div>
 
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-600">
               Step {currentStep} of {steps.length}
             </span>
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-600">
               {Math.round(progressPercentage)}% Complete
             </span>
           </div>
-          <Progress value={progressPercentage} className="h-2" />
+          <Progress value={progressPercentage} className="h-2 bg-green-200" />
         </div>
 
         <div className="flex justify-between mb-8 overflow-x-auto">
@@ -225,13 +225,13 @@ export default function ProfileSetupClient() {
             <div
               key={step.number}
               className={`flex flex-col items-center space-y-2 min-w-0 px-2 ${
-                step.number <= currentStep ? "text-blue-600" : "text-gray-400"
+                step.number <= currentStep ? "text-emerald-600" : "text-gray-400"
               }`}
             >
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center border-2 font-semibold ${
                   step.number <= currentStep
-                    ? "bg-blue-600 text-white border-blue-600"
+                    ? "bg-emerald-600 text-white border-emerald-600"
                     : "bg-white text-gray-400 border-gray-300"
                 }`}
               >
@@ -246,11 +246,11 @@ export default function ProfileSetupClient() {
         </div>
 
         <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+          <CardHeader className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-t-lg">
             <CardTitle className="text-xl">
               {steps[currentStep - 1].title}
             </CardTitle>
-            <CardDescription className="text-blue-100">
+            <CardDescription className="text-emerald-100">
               {steps[currentStep - 1].description}
             </CardDescription>
           </CardHeader>

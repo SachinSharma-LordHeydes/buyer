@@ -67,13 +67,13 @@ const StoreDetailsStep = ({
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Store className="w-8 h-8 text-purple-600" />
+        <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Store className="w-8 h-8 text-indigo-600" />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">
           Store Information
         </h2>
-        <p className="text-gray-600">Tell us about your business</p>
+        <p className="text-gray-500">Tell us about your business</p>
       </div>
 
       <div className="space-y-2">
@@ -165,7 +165,7 @@ const StoreDetailsStep = ({
         </Button>
         <Button
           onClick={handleNext}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 flex items-center space-x-2"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2 flex items-center space-x-2"
         >
           <span>Continue</span>
           <ChevronRight className="w-4 h-4" />

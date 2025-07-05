@@ -61,11 +61,11 @@ const ReviewStep = ({ data, onSubmit, onPrevious }: ReviewStepProps) => {
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="w-8 h-8 text-green-600" />
+        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="w-8 h-8 text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Review Your Information</h2>
-        <p className="text-gray-600">Please review all details before submitting</p>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">Review Your Information</h2>
+        <p className="text-gray-500">Please review all details before submitting</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -73,7 +73,7 @@ const ReviewStep = ({ data, onSubmit, onPrevious }: ReviewStepProps) => {
         <Card className="border-2 border-gray-100 hover:border-blue-200 transition-colors">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center space-x-2 text-lg">
-              <User className="w-5 h-5 text-blue-600" />
+              <User className="w-5 h-5 text-teal-600" />
               <span>Personal Details</span>
             </CardTitle>
           </CardHeader>
@@ -95,7 +95,7 @@ const ReviewStep = ({ data, onSubmit, onPrevious }: ReviewStepProps) => {
         <Card className="border-2 border-gray-100 hover:border-blue-200 transition-colors">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center space-x-2 text-lg">
-              <Store className="w-5 h-5 text-purple-600" />
+              <Store className="w-5 h-5 text-indigo-600" />
               <span>Store Information</span>
             </CardTitle>
           </CardHeader>
@@ -149,7 +149,7 @@ const ReviewStep = ({ data, onSubmit, onPrevious }: ReviewStepProps) => {
       <Card className="border-2 border-gray-100 hover:border-blue-200 transition-colors">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center space-x-2 text-lg">
-            <FileText className="w-5 h-5 text-orange-600" />
+            <FileText className="w-5 h-5 text-amber-600" />
             <span>Documentation</span>
           </CardTitle>
         </CardHeader>
@@ -186,7 +186,7 @@ const ReviewStep = ({ data, onSubmit, onPrevious }: ReviewStepProps) => {
         </Button>
         <Button 
           onClick={onSubmit}
-          className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 flex items-center space-x-2"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 flex items-center space-x-2"
         >
           <span>Complete Setup</span>
           <CheckCircle className="w-4 h-4" />

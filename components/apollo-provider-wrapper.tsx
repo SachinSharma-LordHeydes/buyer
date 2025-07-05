@@ -18,6 +18,8 @@ export default function ApolloProviderWrapper({ children }: { children: React.Re
         // Get the authentication token from Clerk
         const token = await getToken();
         
+        console.log('Apollo auth token acquired:', !!token);
+        
         return {
           headers: {
             ...headers,
