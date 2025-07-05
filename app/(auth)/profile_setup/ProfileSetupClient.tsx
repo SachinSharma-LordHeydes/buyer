@@ -7,7 +7,7 @@ import ReviewStep from "@/components/profile_setup/ReviewStep";
 import StoreAddressStep from "@/components/profile_setup/StoreAddressStep";
 import StoreDetailsStep from "@/components/profile_setup/StoreDetailsStep";
 import ProfileSetupSuccess from "@/components/profile_setup/ProfileSetupSuccess";
-import { ProfileSetupSkeleton } from "@/components/skeletons/ProfileSetupSkeleton";
+import { LoadingModal, useLoadingModal } from "@/components/LoadingModal";
 import {
   Card,
   CardContent,
@@ -52,6 +52,7 @@ export default function ProfileSetupClient() {
   const router = useRouter();
   const [setupProfile] = useMutation(SETUP_PROFILE);
   const { data, loading } = useQuery(GET_USER_DETAILS);
+  const loadingModal = useLoadingModal();
 
   const formData = useReactiveVar(profileFormVar);
   const [currentStep, setCurrentStep] = useState(1);
@@ -70,7 +71,14 @@ export default function ProfileSetupClient() {
 
   // Show skeleton while loading
   if (loading) {
-    return <ProfileSetupSkeleton />;
+    return (
+      <LoadingModal
+        open={true}
+        title="Loading Profile"
+        description="Please wait while we load your profile information"
+        status="loading"
+      />
+    );
   }
 
   const updateFormData = (stepData: any, stepKey: keyof typeof formData) => {
@@ -88,6 +96,8 @@ export default function ProfileSetupClient() {
     currentStep > 1 && setCurrentStep(currentStep - 1);
 
   const handleSubmit = async () => {
+    loadingModal.showLoading();
+    
     try {
       console.log("Submitting form data:", formData);
       const { data } = await setupProfile({
@@ -96,24 +106,27 @@ export default function ProfileSetupClient() {
         awaitRefetchQueries: true
       });
       console.log("Setup profile response:", data);
+      
       if (data?.setupProfile?.success) {
         console.log("Profile setup successful!");
-        toast.success("Profile setup completed successfully!", {
-          description: "Welcome to the platform! Your seller account is now active."
-        });
-        // Show success screen first
-        setIsSuccess(true);
+        loadingModal.showSuccess("Your seller profile has been created successfully!");
+        
+        // Wait a moment to show success, then redirect
+        setTimeout(() => {
+          loadingModal.close();
+          toast.success("Profile setup completed successfully!", {
+            description: "Welcome to the platform! Your seller account is now active."
+          });
+          setIsSuccess(true);
+        }, 2000);
       } else {
         console.error("Profile setup failed:", data?.setupProfile?.message);
-        toast.error("Profile setup failed", {
-          description: data?.setupProfile?.message || 'Unknown error occurred'
-        });
+        loadingModal.showError(data?.setupProfile?.message || 'Unknown error occurred');
       }
     } catch (err) {
       console.error("Submission error:", err);
-      toast.error("Submission error", {
-        description: err instanceof Error ? err.message : 'Unknown error occurred'
-      });
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      loadingModal.showError(errorMessage);
     }
   };
 
@@ -291,6 +304,23 @@ export default function ProfileSetupClient() {
           </CardHeader>
           <CardContent className="p-6">{renderStepContent()}</CardContent>
         </Card>
+        
+        {/* Loading Modal */}
+        <LoadingModal
+          open={loadingModal.isOpen}
+          onOpenChange={loadingModal.setIsOpen}
+          title="Setting Up Profile"
+          description="Please wait while we create your seller profile"
+          status={loadingModal.status}
+          errorMessage={loadingModal.errorMessage}
+          successMessage={loadingModal.successMessage}
+          onClose={() => {
+            loadingModal.close();
+            if (loadingModal.status === 'error') {
+              // Stay on the current step to allow retry
+            }
+          }}
+        />
       </div>
     </div>
   );
