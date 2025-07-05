@@ -6,6 +6,7 @@ import PersonalDetailsStep from "@/components/profile_setup/PersonalDetailsStep"
 import ReviewStep from "@/components/profile_setup/ReviewStep";
 import StoreAddressStep from "@/components/profile_setup/StoreAddressStep";
 import StoreDetailsStep from "@/components/profile_setup/StoreDetailsStep";
+import ProfileSetupSuccess from "@/components/profile_setup/ProfileSetupSuccess";
 import {
   Card,
   CardContent,
@@ -52,13 +53,18 @@ export default function ProfileSetupClient() {
 
   const formData = useReactiveVar(profileFormVar);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     if (!loading && data?.me) {
       userVar(data.me);
-      // Middleware handles profile checks and redirects
+      // If user already has a profile, redirect to dashboard
+      if (data.me.profile) {
+        console.log('User already has profile, redirecting to dashboard');
+        router.replace('/');
+      }
     }
-  }, [loading, data]);
+  }, [loading, data, router]);
 
   // if (loading) return <Loading />;
 
@@ -81,11 +87,14 @@ export default function ProfileSetupClient() {
       console.log("Submitting form data:", formData);
       const { data } = await setupProfile({
         variables: { input: formData },
+        refetchQueries: ['GetUserProfile', 'Me'], // Refetch user profile queries
+        awaitRefetchQueries: true
       });
       console.log("Setup profile response:", data);
       if (data?.setupProfile?.success) {
         console.log("Profile setup successful!");
-        router.push("/");
+        // Show success screen first
+        setIsSuccess(true);
       } else {
         console.error("Profile setup failed:", data?.setupProfile?.message);
         alert(`Profile setup failed: ${data?.setupProfile?.message || 'Unknown error'}`);
@@ -195,6 +204,20 @@ export default function ProfileSetupClient() {
   ];
 
   const progressPercentage = (currentStep / steps.length) * 100;
+
+  // Show success screen if profile setup is complete
+  if (isSuccess) {
+    return (
+      <ProfileSetupSuccess 
+        onContinue={() => {
+          // Force a small delay to ensure database is updated then redirect
+          setTimeout(() => {
+            router.replace("/");
+          }, 500);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-indigo-50 py-8">

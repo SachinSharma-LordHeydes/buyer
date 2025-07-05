@@ -20,16 +20,24 @@ const GET_USER_PROFILE = gql`
 export default function ProfileSetupGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const { data, loading } = useQuery(GET_USER_PROFILE, {
+  const { data, loading, error } = useQuery(GET_USER_PROFILE, {
     skip: !user || !isLoaded,
+    fetchPolicy: 'cache-and-network', // Always check for updates
+    errorPolicy: 'all'
   });
 
   useEffect(() => {
-    if (isLoaded && user && !loading && data?.me?.profile) {
-      // User has a profile, redirect to dashboard
-      router.push('/');
+    if (isLoaded && user && !loading) {
+      if (data?.me?.profile) {
+        // User has a profile, redirect to dashboard
+        console.log('ProfileSetupGuard: User has profile, redirecting to dashboard');
+        router.replace('/');
+      } else if (!error || !error.message.includes('Authentication required')) {
+        // User exists but no profile, stay on profile setup
+        console.log('ProfileSetupGuard: User exists but no profile, staying on setup');
+      }
     }
-  }, [isLoaded, user, data, loading, router]);
+  }, [isLoaded, user, data, loading, error, router]);
 
   // Show loading while checking
   if (!isLoaded || loading) {
