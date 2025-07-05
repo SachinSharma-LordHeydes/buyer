@@ -15,35 +15,50 @@ export interface GraphQLContext {
 }
 
 export async function createContext({ request }: { request: NextRequest }): Promise<GraphQLContext> {
-  const { userId } = getAuth(request);
-  
-  if (!userId) {
-    return { 
+  try {
+    const { userId } = getAuth(request);
+    
+    if (!userId) {
+      console.log('No userId found in auth context');
+      return { 
+        request,
+        prisma,
+        user: null 
+      };
+    }
+
+    console.log('Found userId:', userId);
+    
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!dbUser) {
+      console.log('User not found in database for clerkId:', userId);
+      return { 
+        request,
+        prisma,
+        user: null 
+      };
+    }
+
+    console.log('Found database user:', dbUser.email);
+    
+    return {
       request,
       prisma,
-      user: null 
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+      },
     };
-  }
-
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  });
-
-  if (!dbUser) {
-    return { 
+  } catch (error) {
+    console.error('Error in createContext:', error);
+    return {
       request,
       prisma,
-      user: null 
+      user: null
     };
   }
-
-  return {
-    request,
-    prisma,
-    user: {
-      id: dbUser.id,
-      email: dbUser.email,
-      role: dbUser.role,
-    },
-  };
 }

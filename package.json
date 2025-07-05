@@ -45,7 +45,8 @@
     "svix": "^1.68.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "type-graphql": "^2.0.0-rc.2"
+    "type-graphql": "^2.0.0-rc.2",
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@types/node": "^22",

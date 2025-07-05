@@ -66,7 +66,7 @@ export const productTypeDefs = gql`
 
   input ProductVideoInput {
     url: String!
-    publicId: String
+    publicId: String!
   }
 
   input SpecificationInput {
@@ -88,12 +88,12 @@ export const productTypeDefs = gql`
   }
 
   input UpdateProductInput {
-    name: String!
+    name: String
     description: String
-    price: Float!
-    sku: String!
-    stock: Int!
-    status: ProductStatus = PENDING
+    price: Float
+    sku: String
+    stock: Int
+    status: ProductStatus
     features: [FeatureInput!]
     images: [ImageInput!]
     videos: [ProductVideoInput!]

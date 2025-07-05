@@ -1,6 +1,7 @@
 import { gql } from 'graphql-tag';
+import { profileTypeDefs } from './type_defs/profile.typeDefs';
 
-export const typeDefs = gql`
+const baseTypeDefs = gql`
   # Scalars
   scalar DateTime
   scalar Upload
@@ -31,11 +32,7 @@ export const typeDefs = gql`
     REFUNDED
   }
 
-  enum AddressType {
-    STORE
-    PERMANENT
-    TEMPORARY
-  }
+  # Note: AddressType enum is now defined in profile.typeDefs.ts
 
   # User Types
   type User {
@@ -50,53 +47,7 @@ export const typeDefs = gql`
     updatedAt: DateTime!
   }
 
-  # Profile Types
-  type Profile {
-    id: ID!
-    userId: ID!
-    firstName: String!
-    lastName: String!
-    phoneNumber: String
-    avatar: String
-    addresses: [Address!]!
-    document: Document
-    storeDetail: StoreDetail
-    createdAt: DateTime!
-    updatedAt: DateTime!
-  }
-
-  type Address {
-    id: ID!
-    province: String!
-    addressLabel: String
-    pinCode: String!
-    locality: String!
-    city: String!
-    landMark: String
-    addressType: AddressType!
-    profileId: ID!
-    createdAt: DateTime!
-    updatedAt: DateTime!
-  }
-
-  type Document {
-    id: ID!
-    panNumber: String!
-    profileId: ID!
-    createdAt: DateTime!
-    updatedAt: DateTime!
-  }
-
-  type StoreDetail {
-    id: ID!
-    storeName: String!
-    storeType: String!
-    description: String
-    addressId: ID!
-    profileId: ID!
-    createdAt: DateTime!
-    updatedAt: DateTime!
-  }
+  # Note: Profile types are now defined in profile.typeDefs.ts
 
   # Product Types
   type Product {
@@ -254,41 +205,7 @@ export const typeDefs = gql`
     totalValue: Decimal!
   }
 
-  # Input Types
-  input ProfileSetupInput {
-    personalDetails: PersonalDetailsInput!
-    permanentAddress: AddressInput!
-    temporaryAddress: AddressInput!
-    storeDetails: StoreDetailsInput!
-    storeAddress: AddressInput!
-    documentation: DocumentationInput!
-  }
-
-  input PersonalDetailsInput {
-    firstName: String!
-    lastName: String!
-    phoneNumber: String
-  }
-
-  input AddressInput {
-    province: String!
-    addressLabel: String
-    pinCode: String!
-    locality: String!
-    city: String!
-    landMark: String
-    addressType: AddressType!
-  }
-
-  input StoreDetailsInput {
-    storeName: String!
-    storeType: String!
-    description: String
-  }
-
-  input DocumentationInput {
-    panNumber: String!
-  }
+  # Note: Profile inputs are now defined in profile.typeDefs.ts
 
   input CreateProductInput {
     name: String!
@@ -347,12 +264,7 @@ export const typeDefs = gql`
     search: String
   }
 
-  # Response Types
-  type ProfileSetupResponse {
-    success: Boolean!
-    message: String!
-    profile: Profile
-  }
+  # Note: Profile response types are now defined in profile.typeDefs.ts
 
   type ProductResponse {
     success: Boolean!
@@ -367,9 +279,9 @@ export const typeDefs = gql`
 
   # Queries
   type Query {
-    # User & Profile
+    # User
     me: User
-    profile: Profile
+    # Note: Profile queries are now defined in profile.typeDefs.ts
 
     # Products
     products(filter: ProductFilterInput, limit: Int, offset: Int): [Product!]!
@@ -396,9 +308,7 @@ export const typeDefs = gql`
 
   # Mutations
   type Mutation {
-    # Profile Management
-    setupProfile(input: ProfileSetupInput!): ProfileSetupResponse!
-    updateProfile(input: ProfileSetupInput!): ProfileSetupResponse!
+    # Note: Profile mutations are now defined in profile.typeDefs.ts
 
     # Product Management
     createProduct(input: CreateProductInput!): ProductResponse!
@@ -427,3 +337,6 @@ export const typeDefs = gql`
     quantity: Int!
   }
 `;
+
+// Merge base typeDefs with profile typeDefs
+export const typeDefs = [baseTypeDefs, profileTypeDefs];

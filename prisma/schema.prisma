@@ -79,10 +79,12 @@ model Profile {
 }
 
 model Document {
-  id        String  @id @default(uuid())
-  panNumber String  @unique
-  profile   Profile @relation(name: "ProfileDocument", fields: [profileId], references: [id], onDelete: Cascade)
-  profileId String  @unique
+  id               String    @id @default(uuid())
+  panNumber        String    @unique
+  profile          Profile   @relation(name: "ProfileDocument", fields: [profileId], references: [id], onDelete: Cascade)
+  profileId        String    @unique
+  isVerified       Boolean   @default(false)
+  verificationDate DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -103,6 +105,7 @@ model Address {
   profile      Profile      @relation(name: "ProfileAddresses", fields: [profileId], references: [id], onDelete: Cascade)
   profileId    String
   storeDetail  StoreDetail? @relation("StoreAddress")
+  isDefault    Boolean      @default(false)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -123,6 +126,7 @@ model StoreDetail {
 
   profile   Profile? @relation("ProfileStoreDetail", fields: [profileId], references: [id], onDelete: Cascade)
   profileId String?  @unique
+  isActive  Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

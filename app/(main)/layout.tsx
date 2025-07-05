@@ -1,6 +1,7 @@
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
+import ProfileRedirectHandler from "@/components/ProfileRedirectHandler";
 import React from "react";
 import { Toaster } from "sonner";
 
@@ -12,6 +13,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       enableSystem
       disableTransitionOnChange
     >
+      <ProfileRedirectHandler />
       <div className="flex h-screen">
         {/* Desktop sidebar */}
         <div className="hidden md:flex">

@@ -20,12 +20,14 @@ import { gql, useMutation, useQuery, useReactiveVar } from "@apollo/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const COMPLETE_PROFILE_SETUP = gql`
-  mutation CompleteProfileSetup($input: ProfileSetupInput!) {
-    completeProfileSetup(input: $input) {
+const SETUP_PROFILE = gql`
+  mutation SetupProfile($input: ProfileSetupInput!) {
+    setupProfile(input: $input) {
       success
       message
-      profileId
+      profile {
+        id
+      }
     }
   }
 `;
@@ -45,7 +47,7 @@ const GET_USER_DETAILS = gql`
 
 export default function ProfileSetupClient() {
   const router = useRouter();
-  const [completeProfileSetup] = useMutation(COMPLETE_PROFILE_SETUP);
+  const [setupProfile] = useMutation(SETUP_PROFILE);
   const { data, loading } = useQuery(GET_USER_DETAILS);
 
   const formData = useReactiveVar(profileFormVar);
@@ -54,7 +56,7 @@ export default function ProfileSetupClient() {
   useEffect(() => {
     if (!loading && data?.me) {
       userVar(data.me);
-      if (data.me.profile) router.push("/"); // skip if already set
+      // Middleware handles profile checks and redirects
     }
   }, [loading, data]);
 
@@ -76,17 +78,21 @@ export default function ProfileSetupClient() {
 
   const handleSubmit = async () => {
     try {
-      const { data } = await completeProfileSetup({
+      console.log("Submitting form data:", formData);
+      const { data } = await setupProfile({
         variables: { input: formData },
       });
-      console.log("data:", data);
-      if (data.completeProfileSetup.success) {
+      console.log("Setup profile response:", data);
+      if (data?.setupProfile?.success) {
+        console.log("Profile setup successful!");
         router.push("/");
       } else {
-        console.log("Error:", data.completeProfileSetup.message);
+        console.error("Profile setup failed:", data?.setupProfile?.message);
+        alert(`Profile setup failed: ${data?.setupProfile?.message || 'Unknown error'}`);
       }
     } catch (err) {
       console.error("Submission error:", err);
+      alert(`Submission error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 

@@ -1,20 +1,40 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { X, ArrowLeft, ArrowRight, Save, Trash2, Loader2, AlertTriangle, Plus } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
-import { FormField, ValidatedInput, ValidatedTextarea, ValidatedSelect } from "@/components/form-field"
-import { SelectItem } from "@/components/ui/select"
-import Link from "next/link"
-import Image from "next/image"
-import { useQuery, useMutation } from "@apollo/client"
-import gql from "graphql-tag"
+import {
+  FormField,
+  ValidatedInput,
+  ValidatedSelect,
+  ValidatedTextarea,
+} from "@/components/form-field";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { SelectItem } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { useMutation, useQuery } from "@apollo/client";
+import gql from "graphql-tag";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 // GraphQL Queries and Mutations
 const GET_PRODUCT = gql`
@@ -49,6 +69,24 @@ const GET_PRODUCT = gql`
   }
 `;
 
+// const UPDATE_PRODUCT = gql`
+//   mutation UpdateProduct($id: ID!, $input: UpdateProductInput!) {
+//     updateProduct(id: $id, input: $input) {
+//       success
+//       message
+//       product {
+//         id
+//         name
+//         description
+//         price
+//         sku
+//         stock
+//         status
+//       }
+//     }
+//   }
+// `;
+
 const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($id: ID!, $input: UpdateProductInput!) {
     updateProduct(id: $id, input: $input) {
@@ -62,6 +100,24 @@ const UPDATE_PRODUCT = gql`
         sku
         stock
         status
+        images {
+          id
+          url
+          altText
+          isPrimary
+        }
+        videos {
+          id
+          url
+          publicId
+        }
+        features {
+          id
+          feature
+          value
+        }
+        createdAt
+        updatedAt
       }
     }
   }
@@ -95,18 +151,18 @@ const steps = [
   { id: 2, title: "Specifications", description: "Features and details" },
   { id: 3, title: "Pricing & Inventory", description: "Price and stock" },
   { id: 4, title: "Media Upload", description: "Images and videos" },
-]
+];
 
 export default function EditProductPage() {
-  const router = useRouter()
-  const params = useParams()
-  const productId = params.id as string
+  const router = useRouter();
+  const params = useParams();
+  const productId = params.id as string;
 
-  const [currentStep, setCurrentStep] = useState(1)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [newFeature, setNewFeature] = useState("")
-  
+  const [currentStep, setCurrentStep] = useState(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [newFeature, setNewFeature] = useState("");
+
   // Fetch product data
   const { data, loading, error } = useQuery(GET_PRODUCT, {
     variables: { id: productId },
@@ -125,14 +181,25 @@ export default function EditProductPage() {
     sku: "",
     stock: "",
     features: [] as { feature: string; value: string }[],
-    images: [] as { id?: string; url: string; altText?: string; isPrimary?: boolean; file?: File }[],
-    videos: [] as { id?: string; url: string; publicId?: string; file?: File }[],
-  })
+    images: [] as {
+      id?: string;
+      url: string;
+      altText?: string;
+      isPrimary?: boolean;
+      file?: File;
+    }[],
+    videos: [] as {
+      id?: string;
+      url: string;
+      publicId?: string;
+      file?: File;
+    }[],
+  });
 
   // Initialize form data when product loads
   useEffect(() => {
     if (data?.product) {
-      const product = data.product
+      const product = data.product;
       setFormData({
         name: product.name || "",
         description: product.description || "",
@@ -140,20 +207,22 @@ export default function EditProductPage() {
         sku: product.sku || "",
         stock: product.stock?.toString() || "",
         features: product.features || [],
-        images: product.images?.map((img: any) => ({
-          id: img.id,
-          url: img.url,
-          altText: img.altText,
-          isPrimary: img.isPrimary
-        })) || [],
-        videos: product.videos?.map((video: any) => ({
-          id: video.id,
-          url: video.url,
-          publicId: video.publicId
-        })) || [],
-      })
+        images:
+          product.images?.map((img: any) => ({
+            id: img.id,
+            url: img.url,
+            altText: img.altText,
+            isPrimary: img.isPrimary,
+          })) || [],
+        videos:
+          product.videos?.map((video: any) => ({
+            id: video.id,
+            url: video.url,
+            publicId: video.publicId,
+          })) || [],
+      });
     }
-  }, [data])
+  }, [data]);
 
   // Loading state
   if (loading) {
@@ -164,7 +233,7 @@ export default function EditProductPage() {
           <span className="ml-2">Loading product...</span>
         </div>
       </div>
-    )
+    );
   }
 
   // Error state
@@ -175,16 +244,18 @@ export default function EditProductPage() {
           <CardContent className="pt-6">
             <div className="text-center text-red-500">
               <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Error Loading Product</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                Error Loading Product
+              </h3>
               <p>{error.message}</p>
-              <Button onClick={() => router.push('/products')} className="mt-4">
+              <Button onClick={() => router.push("/products")} className="mt-4">
                 Back to Products
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   // Product not found
@@ -195,77 +266,83 @@ export default function EditProductPage() {
           <CardContent className="pt-6">
             <div className="text-center text-gray-500">
               <h3 className="text-lg font-semibold mb-2">Product Not Found</h3>
-              <Button onClick={() => router.push('/products')} className="mt-4">
+              <Button onClick={() => router.push("/products")} className="mt-4">
                 Back to Products
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const progress = (currentStep / steps.length) * 100
+  const progress = (currentStep / steps.length) * 100;
 
   const validateStep = (step: number) => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     switch (step) {
       case 1:
-        if (!formData.name.trim()) newErrors.name = "Product name is required"
-        if (formData.name.length > 100) newErrors.name = "Name must be less than 100 characters"
-        if (formData.description.length < 10) newErrors.description = "Description must be at least 10 characters"
-        break
+        if (!formData.name.trim()) newErrors.name = "Product name is required";
+        if (formData.name.length > 100)
+          newErrors.name = "Name must be less than 100 characters";
+        if (formData.description.length < 10)
+          newErrors.description = "Description must be at least 10 characters";
+        break;
       case 3:
         if (!formData.price) {
-          newErrors.price = "Price is required"
+          newErrors.price = "Price is required";
         } else {
-          const price = Number.parseFloat(formData.price)
-          if (isNaN(price) || price <= 0) newErrors.price = "Price must be a valid positive number"
+          const price = Number.parseFloat(formData.price);
+          if (isNaN(price) || price <= 0)
+            newErrors.price = "Price must be a valid positive number";
         }
-        if (!formData.sku.trim()) newErrors.sku = "SKU is required"
+        if (!formData.sku.trim()) newErrors.sku = "SKU is required";
         if (!formData.stock) {
-          newErrors.stock = "Stock is required"
+          newErrors.stock = "Stock is required";
         } else {
-          const stock = Number.parseInt(formData.stock)
-          if (isNaN(stock) || stock < 0) newErrors.stock = "Stock must be a valid non-negative number"
+          const stock = Number.parseInt(formData.stock);
+          if (isNaN(stock) || stock < 0)
+            newErrors.stock = "Stock must be a valid non-negative number";
         }
-        break
+        break;
       case 4:
-        if (formData.images.length < 1) newErrors.images = "At least 1 image is required"
-        break
+        if (formData.images.length < 1)
+          newErrors.images = "At least 1 image is required";
+        break;
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const nextStep = () => {
     if (validateStep(currentStep) && currentStep < steps.length) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(currentStep + 1);
     }
-  }
+  };
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep(currentStep - 1);
     }
-  }
+  };
 
   const updateFormData = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value })
+    setFormData({ ...formData, [field]: value });
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors({ ...errors, [field]: "" })
+      setErrors({ ...errors, [field]: "" });
     }
-  }
+  };
 
   // Upload file to Cloudinary
   const uploadToCloudinary = async (file: File, resourceType: string) => {
     try {
       const { data: uploadData } = await generateUploadUrl({
         variables: {
-          folder: resourceType === "image" ? "products/images" : "products/videos",
+          folder:
+            resourceType === "image" ? "products/images" : "products/videos",
           resourceType: resourceType,
         },
       });
@@ -275,26 +352,26 @@ export default function EditProductPage() {
       }
 
       const uploadInfo = uploadData.generateUploadUrl;
-      
+
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('api_key', uploadInfo.apiKey);
-      formData.append('timestamp', uploadInfo.timestamp);
-      formData.append('signature', uploadInfo.signature);
-      formData.append('folder', uploadInfo.folder);
-      formData.append('public_id', uploadInfo.publicId);
-      
+      formData.append("file", file);
+      formData.append("api_key", uploadInfo.apiKey);
+      formData.append("timestamp", uploadInfo.timestamp);
+      formData.append("signature", uploadInfo.signature);
+      formData.append("folder", uploadInfo.folder);
+      formData.append("public_id", uploadInfo.publicId);
+
       if (resourceType === "video") {
         formData.append("resource_type", "video");
       }
 
       const response = await fetch(uploadInfo.url, {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload to Cloudinary');
+        throw new Error("Failed to upload to Cloudinary");
       }
 
       const result = await response.json();
@@ -303,17 +380,120 @@ export default function EditProductPage() {
         publicId: result.public_id,
       };
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       throw error;
     }
   };
 
+  // const handleSave = async () => {
+  //   if (!validateStep(currentStep)) return;
+
+  //   setIsLoading(true);
+  //   try {
+  //     // Upload new images
+  //     console.log("uploading images", formData.images);
+  //     const uploadedImages = [];
+  //     for (const image of formData.images) {
+  //       if (image.file) {
+  //         // New image to upload
+  //         const result = await uploadToCloudinary(image.file, "image");
+  //         uploadedImages.push({
+  //           url: result.url,
+  //           altText: image.altText || "",
+  //           isPrimary: image.isPrimary || false,
+  //         });
+  //       } else {
+  //         // Existing image
+  //         uploadedImages.push({
+  //           url: image.url,
+  //           altText: image.altText || "",
+  //           isPrimary: image.isPrimary || false,
+  //         });
+  //       }
+  //     }
+  //     console.log("uploaded images", uploadedImages);
+
+  //     console.log("uploading videos", formData.videos);
+  //     // Upload new videos
+  //     const uploadedVideos = [];
+  //     for (const video of formData.videos) {
+  //       if (video.file) {
+  //         // New video to upload
+  //         const result = await uploadToCloudinary(video.file, "video");
+  //         uploadedVideos.push({
+  //           url: result.url,
+  //           publicId: result.publicId,
+  //         });
+  //       } else {
+  //         // Existing video
+  //         uploadedVideos.push({
+  //           url: video.url,
+  //           publicId: video.publicId,
+  //         });
+  //       }
+  //     }
+  //     console.log("uploaded videos", uploadedVideos);
+
+  //     console.log("updating product");
+  //     // Update product
+  //     const result = await updateProduct({
+  //       variables: {
+  //         id: productId,
+  //         input: {
+  //           name: formData.name,
+  //           description: formData.description,
+  //           price: parseFloat(formData.price),
+  //           sku: formData.sku,
+  //           stock: parseInt(formData.stock),
+  //           images: uploadedImages,
+  //           videos: uploadedVideos,
+  //           features: formData.features,
+  //         },
+  //       },
+  //     });
+
+  //     console.log("update result", result);
+
+  //     if (result.data?.updateProduct?.success) {
+  //       router.push("/products");
+  //     } else {
+  //       alert(
+  //         "Failed to update product: " + result.data?.updateProduct?.message
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error("Update error:", error);
+  //     alert("Failed to update product");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+  // Fix the features handling in the frontend
+  const addFeature = () => {
+    if (newFeature.trim()) {
+      const newFeatures = [
+        ...formData.features,
+        { feature: newFeature.trim(), value: "" }, // Ensure value is a string
+      ];
+      updateFormData("features", newFeatures);
+      setNewFeature("");
+    }
+  };
+
+  const removeFeature = (index: number) => {
+    const newFeatures = formData.features.filter((_, i) => i !== index);
+    updateFormData("features", newFeatures);
+  };
+
+  // Fix the handleSave function to properly format features
   const handleSave = async () => {
     if (!validateStep(currentStep)) return;
-    
-    setIsLoading(true)
+
+    setIsLoading(true);
     try {
       // Upload new images
+      console.log("uploading images", formData.images);
       const uploadedImages = [];
       for (const image of formData.images) {
         if (image.file) {
@@ -322,18 +502,20 @@ export default function EditProductPage() {
           uploadedImages.push({
             url: result.url,
             altText: image.altText || "",
-            isPrimary: image.isPrimary || false
+            isPrimary: image.isPrimary || false,
           });
         } else {
           // Existing image
           uploadedImages.push({
             url: image.url,
             altText: image.altText || "",
-            isPrimary: image.isPrimary || false
+            isPrimary: image.isPrimary || false,
           });
         }
       }
+      console.log("uploaded images", uploadedImages);
 
+      console.log("uploading videos", formData.videos);
       // Upload new videos
       const uploadedVideos = [];
       for (const video of formData.videos) {
@@ -342,17 +524,25 @@ export default function EditProductPage() {
           const result = await uploadToCloudinary(video.file, "video");
           uploadedVideos.push({
             url: result.url,
-            publicId: result.publicId
+            publicId: result.publicId,
           });
         } else {
           // Existing video
           uploadedVideos.push({
             url: video.url,
-            publicId: video.publicId
+            publicId: video.publicId,
           });
         }
       }
+      console.log("uploaded videos", uploadedVideos);
 
+      // Format features properly
+      const formattedFeatures = formData.features.map((feature) => ({
+        feature: feature.feature,
+        value: feature.value || "", // Ensure value is always a string
+      }));
+
+      console.log("updating product");
       // Update product
       const result = await updateProduct({
         variables: {
@@ -365,84 +555,96 @@ export default function EditProductPage() {
             stock: parseInt(formData.stock),
             images: uploadedImages,
             videos: uploadedVideos,
-            features: formData.features,
-          }
-        }
+            features: formattedFeatures, // Use formatted features
+          },
+        },
       });
 
+      console.log("update result", result);
+
       if (result.data?.updateProduct?.success) {
-        router.push('/products');
+        router.push("/products");
       } else {
-        alert('Failed to update product: ' + result.data?.updateProduct?.message);
+        alert(
+          "Failed to update product: " +
+            (result.data?.updateProduct?.message || "Unknown error")
+        );
       }
     } catch (error) {
-      console.error('Update error:', error);
-      alert('Failed to update product');
+      console.error("Update error:", error);
+      alert("Failed to update product");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
-      setIsLoading(true)
+    if (
+      confirm(
+        "Are you sure you want to delete this product? This action cannot be undone."
+      )
+    ) {
+      setIsLoading(true);
       try {
         const result = await deleteProduct({ variables: { id: productId } });
         if (result.data?.deleteProduct?.success) {
-          router.push("/products")
+          router.push("/products");
         } else {
-          alert('Failed to delete product');
+          alert("Failed to delete product");
         }
       } catch (error) {
-        console.error('Delete error:', error);
-        alert('Failed to delete product');
+        console.error("Delete error:", error);
+        alert("Failed to delete product");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-  }
+  };
 
-  const addFeature = () => {
-    if (newFeature.trim()) {
-      const newFeatures = [...formData.features, { feature: newFeature.trim(), value: "" }]
-      updateFormData("features", newFeatures)
-      setNewFeature("")
-    }
-  }
+  // const addFeature = () => {
+  //   if (newFeature.trim()) {
+  //     const newFeatures = [
+  //       ...formData.features,
+  //       { feature: newFeature.trim(), value: "" },
+  //     ];
+  //     updateFormData("features", newFeatures);
+  //     setNewFeature("");
+  //   }
+  // };
 
-  const removeFeature = (index: number) => {
-    const newFeatures = formData.features.filter((_, i) => i !== index)
-    updateFormData("features", newFeatures)
-  }
+  // const removeFeature = (index: number) => {
+  //   const newFeatures = formData.features.filter((_, i) => i !== index);
+  //   updateFormData("features", newFeatures);
+  // };
 
   const removeImage = (index: number) => {
-    const newImages = formData.images.filter((_, i) => i !== index)
-    updateFormData("images", newImages)
-  }
+    const newImages = formData.images.filter((_, i) => i !== index);
+    updateFormData("images", newImages);
+  };
 
   const removeVideo = (index: number) => {
-    const newVideos = formData.videos.filter((_, i) => i !== index)
-    updateFormData("videos", newVideos)
-  }
+    const newVideos = formData.videos.filter((_, i) => i !== index);
+    updateFormData("videos", newVideos);
+  };
 
   const addImages = (files: FileList) => {
     const newImages = Array.from(files).map((file, index) => ({
       url: URL.createObjectURL(file),
       altText: `${formData.name} image`,
       isPrimary: formData.images.length === 0 && index === 0,
-      file
-    }))
-    updateFormData("images", [...formData.images, ...newImages])
-  }
+      file,
+    }));
+    updateFormData("images", [...formData.images, ...newImages]);
+  };
 
   const addVideos = (files: FileList) => {
-    const newVideos = Array.from(files).map(file => ({
+    const newVideos = Array.from(files).map((file) => ({
       url: URL.createObjectURL(file),
       publicId: `temp_${Date.now()}`,
-      file
-    }))
-    updateFormData("videos", [...formData.videos, ...newVideos])
-  }
+      file,
+    }));
+    updateFormData("videos", [...formData.videos, ...newVideos]);
+  };
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -487,7 +689,11 @@ export default function EditProductPage() {
                 />
               </FormField>
             </div>
-            <FormField label="Product Description" error={errors.description} required>
+            <FormField
+              label="Product Description"
+              error={errors.description}
+              required
+            >
               <ValidatedTextarea
                 placeholder="Describe your product..."
                 className="min-h-[120px]"
@@ -497,7 +703,7 @@ export default function EditProductPage() {
               />
             </FormField>
           </div>
-        )
+        );
       case 2:
         return (
           <div className="space-y-6">
@@ -505,13 +711,17 @@ export default function EditProductPage() {
               <FormField label="Key Features">
                 <div className="space-y-2">
                   <div className="flex gap-2">
-                    <ValidatedInput 
-                      placeholder="Add a feature and press Enter" 
+                    <ValidatedInput
+                      placeholder="Add a feature and press Enter"
                       value={newFeature}
                       onChange={(e) => setNewFeature(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && addFeature()}
+                      onKeyPress={(e) => e.key === "Enter" && addFeature()}
                     />
-                    <Button type="button" onClick={addFeature} disabled={!newFeature.trim()}>
+                    <Button
+                      type="button"
+                      onClick={addFeature}
+                      disabled={!newFeature.trim()}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -519,7 +729,10 @@ export default function EditProductPage() {
                     {formData.features.map((feature, index) => (
                       <Badge key={index} variant="secondary">
                         {feature.feature}
-                        <X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => removeFeature(index)} />
+                        <X
+                          className="ml-1 h-3 w-3 cursor-pointer"
+                          onClick={() => removeFeature(index)}
+                        />
                       </Badge>
                     ))}
                   </div>
@@ -527,7 +740,7 @@ export default function EditProductPage() {
               </FormField>
             </div>
           </div>
-        )
+        );
       case 3:
         return (
           <div className="space-y-6">
@@ -552,7 +765,7 @@ export default function EditProductPage() {
               </FormField>
             </div>
           </div>
-        )
+        );
       case 4:
         return (
           <div className="space-y-6">
@@ -572,7 +785,9 @@ export default function EditProductPage() {
                           />
                           {image.isPrimary && (
                             <div className="absolute top-2 left-2">
-                              <Badge className="bg-blue-100 text-blue-800">Primary</Badge>
+                              <Badge className="bg-blue-100 text-blue-800">
+                                Primary
+                              </Badge>
                             </div>
                           )}
                           <Button
@@ -588,28 +803,32 @@ export default function EditProductPage() {
                     ))}
                   </div>
                 )}
-                
+
                 {/* Add New Images */}
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                   <input
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={(e) => e.target.files && addImages(e.target.files)}
+                    onChange={(e) =>
+                      e.target.files && addImages(e.target.files)
+                    }
                     className="hidden"
                     id="image-upload"
                   />
                   <label htmlFor="image-upload" className="cursor-pointer">
                     <Plus className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                     <p className="text-lg font-medium">Add Images</p>
-                    <p className="text-sm text-gray-500">Click to select images or drag and drop</p>
+                    <p className="text-sm text-gray-500">
+                      Click to select images or drag and drop
+                    </p>
                   </label>
                 </div>
               </div>
             </FormField>
-            
+
             <Separator />
-            
+
             <FormField label="Product Videos (Optional)">
               <div className="space-y-4">
                 {/* Existing Videos */}
@@ -625,7 +844,9 @@ export default function EditProductPage() {
                             muted
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                            <div className="text-white text-sm font-medium">Video {index + 1}</div>
+                            <div className="text-white text-sm font-medium">
+                              Video {index + 1}
+                            </div>
                           </div>
                           <Button
                             variant="destructive"
@@ -640,27 +861,31 @@ export default function EditProductPage() {
                     ))}
                   </div>
                 )}
-                
+
                 {/* Add New Videos */}
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                   <input
                     type="file"
                     accept="video/*"
                     multiple
-                    onChange={(e) => e.target.files && addVideos(e.target.files)}
+                    onChange={(e) =>
+                      e.target.files && addVideos(e.target.files)
+                    }
                     className="hidden"
                     id="video-upload"
                   />
                   <label htmlFor="video-upload" className="cursor-pointer">
                     <Plus className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                     <p className="text-lg font-medium">Add Videos</p>
-                    <p className="text-sm text-gray-500">Click to select videos or drag and drop</p>
+                    <p className="text-sm text-gray-500">
+                      Click to select videos or drag and drop
+                    </p>
                   </label>
                 </div>
               </div>
             </FormField>
           </div>
-        )
+        );
       case 5:
         return (
           <div className="space-y-6">
@@ -684,7 +909,9 @@ export default function EditProductPage() {
             <FormField label="Shipping Class">
               <ValidatedSelect
                 value={formData.shippingClass}
-                onValueChange={(value) => updateFormData("shippingClass", value)}
+                onValueChange={(value) =>
+                  updateFormData("shippingClass", value)
+                }
                 placeholder="Select shipping class"
               >
                 <SelectItem value="standard">Standard Shipping</SelectItem>
@@ -710,7 +937,7 @@ export default function EditProductPage() {
               </div>
             </FormField>
           </div>
-        )
+        );
       case 6:
         return (
           <div className="space-y-6">
@@ -747,11 +974,11 @@ export default function EditProductPage() {
               </div>
             </FormField>
           </div>
-        )
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -766,7 +993,12 @@ export default function EditProductPage() {
           <h2 className="text-3xl font-bold tracking-tight">Edit Product</h2>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={handleDelete} disabled={isLoading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            disabled={isLoading}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button>
@@ -782,9 +1014,13 @@ export default function EditProductPage() {
                 <CardTitle>
                   Step {currentStep} of {steps.length}
                 </CardTitle>
-                <CardDescription>{steps[currentStep - 1]?.title}</CardDescription>
+                <CardDescription>
+                  {steps[currentStep - 1]?.title}
+                </CardDescription>
               </div>
-              <div className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</div>
+              <div className="text-sm text-muted-foreground">
+                {Math.round(progress)}% Complete
+              </div>
             </div>
             <Progress value={progress} className="w-full" />
           </CardHeader>
@@ -797,15 +1033,27 @@ export default function EditProductPage() {
               <div key={step.id} className="flex items-center">
                 <div
                   className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-                    currentStep >= step.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    currentStep >= step.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {step.id}
                 </div>
                 <div className="ml-2 text-sm">
-                  <div className={currentStep >= step.id ? "font-medium" : "text-muted-foreground"}>{step.title}</div>
+                  <div
+                    className={
+                      currentStep >= step.id
+                        ? "font-medium"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {step.title}
+                  </div>
                 </div>
-                {index < steps.length - 1 && <div className="w-8 h-px bg-muted mx-4" />}
+                {index < steps.length - 1 && (
+                  <div className="w-8 h-px bg-muted mx-4" />
+                )}
               </div>
             ))}
           </div>
@@ -815,14 +1063,20 @@ export default function EditProductPage() {
         <Card>
           <CardHeader>
             <CardTitle>{steps[currentStep - 1]?.title}</CardTitle>
-            <CardDescription>{steps[currentStep - 1]?.description}</CardDescription>
+            <CardDescription>
+              {steps[currentStep - 1]?.description}
+            </CardDescription>
           </CardHeader>
           <CardContent>{renderStepContent()}</CardContent>
         </Card>
 
         {/* Navigation Buttons */}
         <div className="flex justify-between">
-          <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>
+          <Button
+            variant="outline"
+            onClick={prevStep}
+            disabled={currentStep === 1}
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
@@ -845,5 +1099,5 @@ export default function EditProductPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

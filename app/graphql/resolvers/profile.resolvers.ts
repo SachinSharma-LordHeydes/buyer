@@ -1,264 +1,432 @@
 import { GraphQLContext } from '../context';
-import { requireAuth, validateInput, handleAsyncErrors } from './auth.helpers';
+import { requireAuth, handleAsyncErrors } from './auth.helpers';
 import { AddressType, Role } from '@prisma/client';
+import { ProfileDatabaseService } from './profile/database.service';
+import {
+  validateProfileSetupInput,
+  validatePersonalDetails,
+  validateAddress,
+  validateStoreDetails,
+  validateDocumentation,
+  sanitizeInput,
+  ValidationError
+} from './profile/validation.helpers';
 
-/**
- * Validation helpers
- */
-const validatePhoneNumber = (phone: string): boolean => {
-  const phoneRegex = /^[+]?[1-9]\d{1,14}$/;
-  const cleanPhone = phone.replace(/[()\s-]/g, '');
-  return phoneRegex.test(cleanPhone) && cleanPhone.length >= 10;
-};
-
-const validatePanNumber = (pan: string): boolean => {
-  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-  return panRegex.test(pan.toUpperCase());
-};
-
-const validatePincode = (pincode: string): boolean => {
-  const pincodeRegex = /^[1-9][0-9]{5}$/;
-  return pincodeRegex.test(pincode);
-};
-
-const validateProfileSetupInput = (input: any) => {
-  const { personalDetails, storeDetails, documentation, permanentAddress, temporaryAddress, storeAddress } = input;
-
-  // Validate personal details
-  validateInput(personalDetails, ['firstName', 'lastName']);
-  if (personalDetails.phoneNumber && !validatePhoneNumber(personalDetails.phoneNumber)) {
-    throw new Error('Invalid phone number format');
-  }
-
-  // Validate store details
-  validateInput(storeDetails, ['storeName', 'storeType']);
-
-  // Validate documentation
-  validateInput(documentation, ['panNumber']);
-  if (!validatePanNumber(documentation.panNumber)) {
-    throw new Error('Invalid PAN number format');
-  }
-
-  // Validate addresses
-  const addresses = [permanentAddress, temporaryAddress, storeAddress];
-  const addressTypes = ['permanent', 'temporary', 'store'];
-  
-  addresses.forEach((address, index) => {
-    const type = addressTypes[index];
-    validateInput(address, ['province', 'city', 'pinCode', 'locality']);
-    if (!validatePincode(address.pinCode)) {
-      throw new Error(`Invalid ${type} address pincode format`);
-    }
-  });
+// Helper function to format validation errors
+const formatValidationErrors = (errors: ValidationError[]) => {
+  return errors.map(error => ({
+    field: error.field,
+    message: error.message,
+    code: error.code
+  }));
 };
 
 export const profileResolvers = {
   Query: {
+    // Legacy profile query
     profile: async (_: any, __: any, context: GraphQLContext) => {
       return handleAsyncErrors(async () => {
         const user = requireAuth(context);
-        
-        const profile = await context.prisma.profile.findUnique({
-          where: { userId: user.id },
-          include: {
-            addresses: true,
-            document: true,
-            storeDetail: {
-              include: {
-                storeAddress: true
-              }
-            }
-          }
-        });
-
-        return profile;
+        const dbService = new ProfileDatabaseService(context);
+        return await dbService.getFullProfile(user.id);
       }, 'Failed to fetch profile');
+    },
+
+    // Enhanced profile query
+    myProfile: async (_: any, __: any, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        return await dbService.getFullProfile(user.id);
+      }, 'Failed to fetch profile');
+    },
+
+    // Admin-only profile query
+    profileById: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        
+        // Check if user is admin
+        if (user.role !== Role.ADMIN) {
+          throw new Error('Access denied. Admin privileges required.');
+        }
+
+        const dbService = new ProfileDatabaseService(context);
+        return await dbService.getProfileById(id);
+      }, 'Failed to fetch profile');
+    },
+
+    // Validate profile without saving
+    validateProfile: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        requireAuth(context); // Ensure user is authenticated
+        
+        const sanitizedInput = sanitizeInput(input);
+        const validationResult = validateProfileSetupInput(sanitizedInput);
+        
+        return {
+          isValid: validationResult.isValid,
+          errors: formatValidationErrors(validationResult.errors),
+          completionPercentage: validationResult.isValid ? 100 : 0,
+          missingFields: validationResult.errors.map(e => e.field)
+        };
+      }, 'Failed to validate profile');
+    },
+
+    // Get profile completion status
+    profileCompletionStatus: async (_: any, __: any, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        return await dbService.getProfileCompletionStatus(user.id);
+      }, 'Failed to get profile completion status');
     },
   },
 
   Mutation: {
-    setupProfile: async (
-      _: any,
-      { input }: { input: any },
-      context: GraphQLContext
-    ) => {
+    // Enhanced create profile
+    createProfile: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       return handleAsyncErrors(async () => {
         const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
         
-        // Validate input
-        validateProfileSetupInput(input);
-
         // Check if profile already exists
-        const existingProfile = await context.prisma.profile.findUnique({
-          where: { userId: user.id }
-        });
-
-        if (existingProfile) {
-          throw new Error('Profile already exists. Use updateProfile to modify existing profile.');
+        const exists = await dbService.profileExists(user.id);
+        if (exists) {
+          return {
+            success: false,
+            message: 'Profile already exists. Use updateProfile to modify existing profile.',
+            profile: null,
+            errors: [{
+              field: 'general',
+              message: 'Profile already exists',
+              code: 'PROFILE_ALREADY_EXISTS'
+            }]
+          };
         }
 
-        // Create profile with transaction
-        const profile = await context.prisma.$transaction(async (tx) => {
-          // Create profile
-          const newProfile = await tx.profile.create({
-            data: {
-              userId: user.id,
-              firstName: input.personalDetails.firstName.trim(),
-              lastName: input.personalDetails.lastName.trim(),
-              phoneNumber: input.personalDetails.phoneNumber?.trim() || null,
-            },
-          });
+        // Sanitize and validate input
+        const sanitizedInput = sanitizeInput(input);
+        const validationResult = validateProfileSetupInput(sanitizedInput);
+        
+        if (!validationResult.isValid) {
+          return {
+            success: false,
+            message: 'Validation failed',
+            profile: null,
+            errors: formatValidationErrors(validationResult.errors)
+          };
+        }
 
-          // Create addresses
-          const addressData = [
-            {
-              ...input.permanentAddress,
-              profileId: newProfile.id,
-              addressType: AddressType.PERMANENT,
-              province: input.permanentAddress.province.trim(),
-              city: input.permanentAddress.city.trim(),
-              pinCode: input.permanentAddress.pinCode.trim(),
-              locality: input.permanentAddress.locality.trim(),
-              landMark: input.permanentAddress.landMark?.trim() || null,
-              addressLabel: input.permanentAddress.addressLabel?.trim() || null,
-            },
-            {
-              ...input.temporaryAddress,
-              profileId: newProfile.id,
-              addressType: AddressType.TEMPORARY,
-              province: input.temporaryAddress.province.trim(),
-              city: input.temporaryAddress.city.trim(),
-              pinCode: input.temporaryAddress.pinCode.trim(),
-              locality: input.temporaryAddress.locality.trim(),
-              landMark: input.temporaryAddress.landMark?.trim() || null,
-              addressLabel: input.temporaryAddress.addressLabel?.trim() || null,
-            },
-            {
-              ...input.storeAddress,
-              profileId: newProfile.id,
-              addressType: AddressType.STORE,
-              province: input.storeAddress.province.trim(),
-              city: input.storeAddress.city.trim(),
-              pinCode: input.storeAddress.pinCode.trim(),
-              locality: input.storeAddress.locality.trim(),
-              landMark: input.storeAddress.landMark?.trim() || null,
-              addressLabel: input.storeAddress.addressLabel?.trim() || null,
-            },
-          ];
-
-          const addresses = await Promise.all(
-            addressData.map((address) => tx.address.create({ data: address }))
-          );
-
-          const storeAddress = addresses[2];
-
-          // Create store details
-          await tx.storeDetail.create({
-            data: {
-              storeName: input.storeDetails.storeName.trim(),
-              storeType: input.storeDetails.storeType.trim(),
-              description: input.storeDetails.description?.trim() || null,
-              profileId: newProfile.id,
-              addressId: storeAddress.id,
-            },
-          });
-
-          // Create documentation
-          await tx.document.create({
-            data: {
-              panNumber: input.documentation.panNumber.toUpperCase().trim(),
-              profileId: newProfile.id,
-            },
-          });
-
-          // Update user role to SELLER
-          await tx.user.update({
-            where: { id: user.id },
-            data: { role: Role.SELLER }
-          });
-
-          return newProfile;
-        });
+        // Create profile
+        const profileId = await dbService.createProfile(user.id, sanitizedInput);
+        const profile = await dbService.getFullProfile(user.id);
 
         return {
           success: true,
-          message: 'Profile setup completed successfully. You are now a verified seller!',
-          profile: await context.prisma.profile.findUnique({
-            where: { id: profile.id },
-            include: {
-              addresses: true,
-              document: true,
-              storeDetail: {
-                include: {
-                  storeAddress: true
-                }
-              }
-            }
-          })
+          message: 'Profile created successfully. You are now a verified seller!',
+          profile,
+          errors: []
         };
-      }, 'Failed to setup profile');
+      }, 'Failed to create profile');
     },
 
-    updateProfile: async (
-      _: any,
-      { input }: { input: any },
-      context: GraphQLContext
-    ) => {
+    // Enhanced update profile
+    updateProfile: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       return handleAsyncErrors(async () => {
         const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
         
-        const existingProfile = await context.prisma.profile.findUnique({
-          where: { userId: user.id },
-          select: { id: true },
-        });
-
-        if (!existingProfile) {
-          throw new Error('Profile not found. Please setup your profile first.');
+        // Check if profile exists
+        const exists = await dbService.profileExists(user.id);
+        if (!exists) {
+          return {
+            success: false,
+            message: 'Profile not found. Please create your profile first.',
+            profile: null,
+            errors: [{
+              field: 'general',
+              message: 'Profile not found',
+              code: 'PROFILE_NOT_FOUND'
+            }]
+          };
         }
 
-        // Validate input if provided
-        if (input.personalDetails?.phoneNumber && 
-            !validatePhoneNumber(input.personalDetails.phoneNumber)) {
-          throw new Error('Invalid phone number format');
+        // Sanitize input
+        const sanitizedInput = sanitizeInput(input);
+        const errors: ValidationError[] = [];
+
+        // Validate each section if provided
+        if (sanitizedInput.personalDetails) {
+          errors.push(...validatePersonalDetails(sanitizedInput.personalDetails));
+        }
+        if (sanitizedInput.storeDetails) {
+          errors.push(...validateStoreDetails(sanitizedInput.storeDetails));
+        }
+        if (sanitizedInput.documentation) {
+          errors.push(...validateDocumentation(sanitizedInput.documentation));
         }
 
-        const updateData: any = {};
-        if (input.personalDetails) {
-          if (input.personalDetails.firstName) {
-            updateData.firstName = input.personalDetails.firstName.trim();
-          }
-          if (input.personalDetails.lastName) {
-            updateData.lastName = input.personalDetails.lastName.trim();
-          }
-          if (input.personalDetails.phoneNumber) {
-            updateData.phoneNumber = input.personalDetails.phoneNumber.trim();
-          }
+        if (errors.length > 0) {
+          return {
+            success: false,
+            message: 'Validation failed',
+            profile: null,
+            errors: formatValidationErrors(errors)
+          };
         }
 
-        const updatedProfile = await context.prisma.profile.update({
-          where: { userId: user.id },
-          data: updateData,
-          include: {
-            addresses: true,
-            document: true,
-            storeDetail: {
-              include: {
-                storeAddress: true,
-              },
-            },
-          },
-        });
+        // Update sections
+        if (sanitizedInput.personalDetails) {
+          await dbService.updatePersonalDetails(user.id, sanitizedInput.personalDetails);
+        }
+        if (sanitizedInput.storeDetails) {
+          await dbService.updateStoreDetails(user.id, sanitizedInput.storeDetails);
+        }
+        if (sanitizedInput.documentation) {
+          await dbService.updateDocumentation(user.id, sanitizedInput.documentation);
+        }
+        // Address updates would need special handling
+
+        const profile = await dbService.getFullProfile(user.id);
 
         return {
           success: true,
           message: 'Profile updated successfully',
-          profile: updatedProfile
+          profile,
+          errors: []
         };
       }, 'Failed to update profile');
     },
+
+    // Legacy setupProfile (for backward compatibility)
+    setupProfile: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        // Check if profile already exists
+        const exists = await dbService.profileExists(user.id);
+        if (exists) {
+          throw new Error('Profile already exists. Use updateProfile to modify existing profile.');
+        }
+
+        // Validate input
+        const sanitizedInput = sanitizeInput(input);
+        const validationResult = validateProfileSetupInput(sanitizedInput);
+        
+        if (!validationResult.isValid) {
+          throw new Error(validationResult.errors[0]?.message || 'Validation failed');
+        }
+
+        // Create profile
+        await dbService.createProfile(user.id, sanitizedInput);
+        const profile = await dbService.getFullProfile(user.id);
+
+        return {
+          success: true,
+          message: 'Profile setup completed successfully. You are now a verified seller!',
+          profile
+        };
+      }, 'Failed to setup profile');
+    },
+
+    // Section-specific updates
+    updatePersonalDetails: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        const sanitizedInput = sanitizeInput(input);
+        const errors = validatePersonalDetails(sanitizedInput);
+        
+        if (errors.length > 0) {
+          return {
+            success: false,
+            message: 'Validation failed',
+            profile: null,
+            errors: formatValidationErrors(errors)
+          };
+        }
+
+        const profile = await dbService.updatePersonalDetails(user.id, sanitizedInput);
+
+        return {
+          success: true,
+          message: 'Personal details updated successfully',
+          profile,
+          errors: []
+        };
+      }, 'Failed to update personal details');
+    },
+
+    updateStoreDetails: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        const sanitizedInput = sanitizeInput(input);
+        const errors = validateStoreDetails(sanitizedInput);
+        
+        if (errors.length > 0) {
+          return {
+            success: false,
+            message: 'Validation failed',
+            profile: null,
+            errors: formatValidationErrors(errors)
+          };
+        }
+
+        await dbService.updateStoreDetails(user.id, sanitizedInput);
+        const profile = await dbService.getFullProfile(user.id);
+
+        return {
+          success: true,
+          message: 'Store details updated successfully',
+          profile,
+          errors: []
+        };
+      }, 'Failed to update store details');
+    },
+
+    updateDocumentation: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        const sanitizedInput = sanitizeInput(input);
+        const errors = validateDocumentation(sanitizedInput);
+        
+        if (errors.length > 0) {
+          return {
+            success: false,
+            message: 'Validation failed',
+            profile: null,
+            errors: formatValidationErrors(errors)
+          };
+        }
+
+        await dbService.updateDocumentation(user.id, sanitizedInput);
+        const profile = await dbService.getFullProfile(user.id);
+
+        return {
+          success: true,
+          message: 'Documentation updated successfully',
+          profile,
+          errors: []
+        };
+      }, 'Failed to update documentation');
+    },
+
+    // Address management
+    addAddress: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        const sanitizedInput = sanitizeInput(input);
+        const errors = validateAddress(sanitizedInput, 'address');
+        
+        if (errors.length > 0) {
+          return {
+            success: false,
+            message: 'Validation failed',
+            address: null,
+            errors: formatValidationErrors(errors)
+          };
+        }
+
+        const address = await dbService.addAddress(user.id, sanitizedInput);
+
+        return {
+          success: true,
+          message: 'Address added successfully',
+          address,
+          errors: []
+        };
+      }, 'Failed to add address');
+    },
+
+    updateAddress: async (_: any, { id, input }: { id: string, input: any }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        const sanitizedInput = sanitizeInput(input);
+        const address = await dbService.updateAddress(id, sanitizedInput);
+
+        return {
+          success: true,
+          message: 'Address updated successfully',
+          address,
+          errors: []
+        };
+      }, 'Failed to update address');
+    },
+
+    deleteAddress: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        await dbService.deleteAddress(id);
+
+        return {
+          success: true,
+          message: 'Address deleted successfully'
+        };
+      }, 'Failed to delete address');
+    },
+
+    setDefaultAddress: async (_: any, { id, addressType }: { id: string, addressType: AddressType }, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        const address = await dbService.setDefaultAddress(id, addressType);
+
+        return {
+          success: true,
+          message: 'Default address updated successfully',
+          address,
+          errors: []
+        };
+      }, 'Failed to set default address');
+    },
+
+    deleteProfile: async (_: any, __: any, context: GraphQLContext) => {
+      return handleAsyncErrors(async () => {
+        const user = requireAuth(context);
+        const dbService = new ProfileDatabaseService(context);
+        
+        await dbService.deleteProfile(user.id);
+
+        return {
+          success: true,
+          message: 'Profile deleted successfully'
+        };
+      }, 'Failed to delete profile');
+    },
   },
 
+  // Field resolvers
   Profile: {
+    fullName: (parent: any) => {
+      return `${parent.firstName} ${parent.lastName}`.trim();
+    },
+
+    isComplete: async (parent: any, _: any, context: GraphQLContext) => {
+      const dbService = new ProfileDatabaseService(context);
+      const status = await dbService.getProfileCompletionStatus(parent.userId);
+      return status.isComplete;
+    },
+
+    completionPercentage: async (parent: any, _: any, context: GraphQLContext) => {
+      const dbService = new ProfileDatabaseService(context);
+      const status = await dbService.getProfileCompletionStatus(parent.userId);
+      return status.completionPercentage;
+    },
+
     storeDetail: async (parent: any, _: any, context: GraphQLContext) => {
       return context.prisma.storeDetail.findUnique({
         where: { profileId: parent.id },
@@ -279,6 +447,24 @@ export const profileResolvers = {
         where: { profileId: parent.id },
         orderBy: { addressType: 'asc' }
       });
+    },
+  },
+
+  Address: {
+    isDefault: (parent: any) => {
+      return parent.isDefault || false;
+    },
+  },
+
+  Document: {
+    isVerified: (parent: any) => {
+      return parent.isVerified || false;
+    },
+  },
+
+  StoreDetail: {
+    isActive: (parent: any) => {
+      return parent.isActive !== false; // Default to true if not set
     },
   },
 };
