@@ -1,0 +1,40 @@
+# GraphQL Schema for Product Updates
+
+input UpdateProductInput {
+  name: String
+  description: String
+  price: Float
+  sku: String
+  stock: Int
+  status: ProductStatus
+  images: [ProductImageInput!]
+  videos: [ProductVideoInput!]
+  features: [ProductFeatureInput!]
+  specifications: [ProductSpecificationInput!]
+}
+
+input ProductImageInput {
+  url: String!
+  altText: String
+  isPrimary: Boolean
+}
+
+input ProductVideoInput {
+  url: String!
+  publicId: String!
+}
+
+input ProductFeatureInput {
+  feature: String!
+  value: String
+}
+
+input ProductSpecificationInput {
+  name: String!
+  value: String
+}
+
+# Update the Mutation type to include the new input
+extend type Mutation {
+  updateProduct(id: ID!, input: UpdateProductInput!): Product!
+}

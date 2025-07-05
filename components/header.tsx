@@ -1,8 +1,9 @@
 "use client"
 
-import { Bell, Search, Menu } from "lucide-react"
+import { Sidebar } from "@/components/sidebar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,12 +12,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Sidebar } from "@/components/sidebar"
+import { Bell, Menu, Moon, Search, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
 
 export function Header() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <header className="flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-2 sm:px-4 lg:h-[60px] lg:px-6">
       {/* Mobile menu trigger */}
@@ -50,6 +60,20 @@ export function Header() {
         <Badge className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 text-xs">3</Badge>
         <span className="sr-only">Toggle notifications</span>
       </Button>
+
+      {/* Theme toggle button */}
+      {mounted && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-transparent shrink-0"
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

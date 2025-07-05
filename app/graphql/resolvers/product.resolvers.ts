@@ -1,0 +1,636 @@
+import { GraphQLContext } from '../context';
+import { requireSeller, requireProductOwnership, validateInput, handleAsyncErrors } from './auth.helpers';
+import { ProductStatus } from '@prisma/client';
+
+const validateProductInput = (input: any) => {
+  validateInput(input, ['name', 'price', 'stock']);
+  
+  if (input.price <= 0) {
+    throw new Error('Price must be greater than 0');
+  }
+  
+  if (input.stock < 0) {
+    throw new Error('Stock cannot be negative');
+  }
+  
+  if (input.name.length > 255) {
+    throw new Error('Product name must be less than 255 characters');
+  }
+  
+  if (input.description && input.description.length > 2000) {
+    throw new Error('Description must be less than 2000 characters');
+  }
+};
+
+export const productResolvers = {
+  Query: {
+    products: async (
+      _: any,
+      { filter, limit = 50, offset = 0 }: { filter?: any; limit?: number; offset?: number },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        const user = requireSeller(context);
+        
+        const where: any = {
+          sellerId: user.id,
+          deletedAt: null
+        };
+
+        // Apply filters
+        if (filter) {
+          if (filter.status) {
+            where.status = filter.status;
+          }
+          if (filter.search) {
+            where.OR = [
+              { name: { contains: filter.search, mode: 'insensitive' } },
+              { description: { contains: filter.search, mode: 'insensitive' } },
+              { sku: { contains: filter.search, mode: 'insensitive' } }
+            ];
+          }
+          if (filter.category) {
+            where.categories = {
+              some: {
+                categoryId: filter.category
+              }
+            };
+          }
+          if (filter.minPrice || filter.maxPrice) {
+            where.price = {};
+            if (filter.minPrice) where.price.gte = filter.minPrice;
+            if (filter.maxPrice) where.price.lte = filter.maxPrice;
+          }
+          if (filter.inStock !== undefined) {
+            if (filter.inStock) {
+              where.stock = { gt: 0 };
+            } else {
+              where.stock = 0;
+            }
+          }
+        }
+
+        return await context.prisma.product.findMany({
+          where,
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            },
+            videos: true,
+            features: true,
+            categories: {
+              include: {
+                category: true
+              }
+            },
+            discount: true
+          },
+          orderBy: { createdAt: 'desc' },
+          take: Math.min(limit, 100), // Max 100 items per query
+          skip: offset
+        });
+      }, 'Failed to fetch products');
+    },
+
+    product: async (
+      _: any,
+      { id }: { id: string },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        const user = requireSeller(context);
+        
+        const product = await context.prisma.product.findFirst({
+          where: {
+            id,
+            sellerId: user.id,
+            deletedAt: null
+          },
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            },
+            videos: true,
+            features: true,
+            categories: {
+              include: {
+                category: true
+              }
+            },
+            discount: true,
+            reviews: {
+              include: {
+                user: {
+                  include: {
+                    profile: true
+                  }
+                }
+              },
+              orderBy: { createdAt: 'desc' }
+            }
+          }
+        });
+
+        if (!product) {
+          throw new Error('Product not found');
+        }
+
+        return product;
+      }, 'Failed to fetch product');
+    },
+
+    searchProducts: async (
+      _: any,
+      { query }: { query: string },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        const user = requireSeller(context);
+        
+        return await context.prisma.product.findMany({
+          where: {
+            sellerId: user.id,
+            deletedAt: null,
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { description: { contains: query, mode: 'insensitive' } },
+              { sku: { contains: query, mode: 'insensitive' } }
+            ]
+          },
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            },
+            categories: {
+              include: {
+                category: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        });
+      }, 'Failed to search products');
+    },
+  },
+
+  Mutation: {
+    createProduct: async (
+      _: any,
+      { input }: { input: any },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        const user = requireSeller(context);
+        
+        validateProductInput(input);
+
+        const product = await context.prisma.$transaction(async (tx) => {
+          // Create product
+          const newProduct = await tx.product.create({
+            data: {
+              name: input.name.trim(),
+              description: input.description?.trim() || null,
+              price: input.price,
+              sku: input.sku?.trim() || null,
+              stock: input.stock,
+              sellerId: user.id,
+              status: ProductStatus.PENDING
+            }
+          });
+
+          // Create images
+          if (input.images && input.images.length > 0) {
+            await tx.productImage.createMany({
+              data: input.images.map((img: any, index: number) => ({
+                productId: newProduct.id,
+                url: img.url,
+                altText: img.altText || null,
+                isPrimary: img.isPrimary || index === 0
+              }))
+            });
+          }
+
+          // Create videos
+          if (input.videos && input.videos.length > 0) {
+            await tx.productVideo.createMany({
+              data: input.videos.map((video: any) => ({
+                productId: newProduct.id,
+                url: video.url,
+                publicId: video.publicId
+              }))
+            });
+          }
+
+          // Create features
+          if (input.features && input.features.length > 0) {
+            await tx.productFeature.createMany({
+              data: input.features.map((feature: any) => ({
+                productId: newProduct.id,
+                feature: feature.feature,
+                value: feature.value || null
+              }))
+            });
+          }
+
+          // Create category associations
+          if (input.categories && input.categories.length > 0) {
+            await tx.productCategory.createMany({
+              data: input.categories.map((categoryId: string) => ({
+                productId: newProduct.id,
+                categoryId
+              }))
+            });
+          }
+
+          return newProduct;
+        });
+
+        // Fetch the complete product with relations
+        const createdProduct = await context.prisma.product.findUnique({
+          where: { id: product.id },
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            },
+            videos: true,
+            features: true,
+            categories: {
+              include: {
+                category: true
+              }
+            }
+          }
+        });
+
+        return {
+          success: true,
+          message: 'Product created successfully',
+          product: createdProduct
+        };
+      }, 'Failed to create product');
+    },
+
+    updateProduct: async (
+      _: any,
+      { id, input }: { id: string; input: any },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        await requireProductOwnership(context, id);
+        
+        if (Object.keys(input).length === 0) {
+          throw new Error('At least one field must be provided for update');
+        }
+
+        // Validate only provided fields
+        if (input.price !== undefined && input.price <= 0) {
+          throw new Error('Price must be greater than 0');
+        }
+        if (input.stock !== undefined && input.stock < 0) {
+          throw new Error('Stock cannot be negative');
+        }
+
+        const updatedProduct = await context.prisma.$transaction(async (tx) => {
+          // Update basic product fields
+          const updateData: any = {};
+          if (input.name) updateData.name = input.name.trim();
+          if (input.description !== undefined) updateData.description = input.description?.trim() || null;
+          if (input.price !== undefined) updateData.price = input.price;
+          if (input.sku !== undefined) updateData.sku = input.sku?.trim() || null;
+          if (input.stock !== undefined) updateData.stock = input.stock;
+          if (input.status) updateData.status = input.status;
+
+          const product = await tx.product.update({
+            where: { id },
+            data: updateData
+          });
+
+          // Update images if provided
+          if (input.images) {
+            // Delete existing images
+            await tx.productImage.deleteMany({
+              where: { productId: id }
+            });
+
+            // Create new images
+            if (input.images.length > 0) {
+              await tx.productImage.createMany({
+                data: input.images.map((img: any, index: number) => ({
+                  productId: id,
+                  url: img.url,
+                  altText: img.altText || null,
+                  isPrimary: img.isPrimary || index === 0
+                }))
+              });
+            }
+          }
+
+          // Update videos if provided
+          if (input.videos) {
+            // Delete existing videos
+            await tx.productVideo.deleteMany({
+              where: { productId: id }
+            });
+
+            // Create new videos
+            if (input.videos.length > 0) {
+              await tx.productVideo.createMany({
+                data: input.videos.map((video: any) => ({
+                  productId: id,
+                  url: video.url,
+                  publicId: video.publicId
+                }))
+              });
+            }
+          }
+
+          // Update features if provided
+          if (input.features) {
+            // Delete existing features
+            await tx.productFeature.deleteMany({
+              where: { productId: id }
+            });
+
+            // Create new features
+            if (input.features.length > 0) {
+              await tx.productFeature.createMany({
+                data: input.features.map((feature: any) => ({
+                  productId: id,
+                  feature: feature.feature,
+                  value: feature.value || null
+                }))
+              });
+            }
+          }
+
+          // Update categories if provided
+          if (input.categories) {
+            // Delete existing category associations
+            await tx.productCategory.deleteMany({
+              where: { productId: id }
+            });
+
+            // Create new category associations
+            if (input.categories.length > 0) {
+              await tx.productCategory.createMany({
+                data: input.categories.map((categoryId: string) => ({
+                  productId: id,
+                  categoryId
+                }))
+              });
+            }
+          }
+
+          return product;
+        });
+
+        // Fetch the complete updated product
+        const product = await context.prisma.product.findUnique({
+          where: { id },
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            },
+            videos: true,
+            features: true,
+            categories: {
+              include: {
+                category: true
+              }
+            }
+          }
+        });
+
+        return {
+          success: true,
+          message: 'Product updated successfully',
+          product
+        };
+      }, 'Failed to update product');
+    },
+
+    deleteProduct: async (
+      _: any,
+      { id }: { id: string },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        await requireProductOwnership(context, id);
+
+        console.log("deleteProduct called with id:", id);
+        
+        // Soft delete the product
+        await context.prisma.product.update({
+          where: { id },
+          data: { deletedAt: new Date() }
+        });
+
+        return {
+          success: true,
+          message: 'Product deleted successfully'
+        };
+      }, 'Failed to delete product');
+    },
+
+    updateProductStatus: async (
+      _: any,
+      { id, status }: { id: string; status: ProductStatus },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        await requireProductOwnership(context, id);
+        
+        const product = await context.prisma.product.update({
+          where: { id },
+          data: { status },
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            },
+            videos: true,
+            features: true,
+            categories: {
+              include: {
+                category: true
+              }
+            }
+          }
+        });
+
+        return {
+          success: true,
+          message: `Product status updated to ${status}`,
+          product
+        };
+      }, 'Failed to update product status');
+    },
+
+    updateStock: async (
+      _: any,
+      { productId, quantity }: { productId: string; quantity: number },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        await requireProductOwnership(context, productId);
+        
+        if (quantity < 0) {
+          throw new Error('Stock quantity cannot be negative');
+        }
+
+        const product = await context.prisma.product.update({
+          where: { id: productId },
+          data: { stock: quantity },
+          include: {
+            images: {
+              orderBy: { isPrimary: 'desc' }
+            }
+          }
+        });
+
+        return {
+          success: true,
+          message: 'Stock updated successfully',
+          product
+        };
+      }, 'Failed to update stock');
+    },
+
+    bulkUpdateStock: async (
+      _: any,
+      { updates }: { updates: Array<{ productId: string; quantity: number }> },
+      context: GraphQLContext
+    ) => {
+      return handleAsyncErrors(async () => {
+        const user = requireSeller(context);
+        
+        if (updates.length === 0) {
+          throw new Error('No updates provided');
+        }
+
+        if (updates.length > 100) {
+          throw new Error('Maximum 100 products can be updated at once');
+        }
+
+        // Validate all products belong to user
+        const productIds = updates.map(u => u.productId);
+        const products = await context.prisma.product.findMany({
+          where: {
+            id: { in: productIds },
+            sellerId: user.id,
+            deletedAt: null
+          },
+          select: { id: true }
+        });
+
+        if (products.length !== productIds.length) {
+          throw new Error('Some products not found or access denied');
+        }
+
+        // Validate quantities
+        for (const update of updates) {
+          if (update.quantity < 0) {
+            throw new Error(`Invalid quantity for product ${update.productId}: cannot be negative`);
+          }
+        }
+
+        // Perform bulk update
+        const results = await Promise.all(
+          updates.map(async (update) => {
+            const product = await context.prisma.product.update({
+              where: { id: update.productId },
+              data: { stock: update.quantity },
+              include: {
+                images: {
+                  orderBy: { isPrimary: 'desc' }
+                }
+              }
+            });
+
+            return {
+              success: true,
+              message: 'Stock updated successfully',
+              product
+            };
+          })
+        );
+
+        return results;
+      }, 'Failed to bulk update stock');
+    },
+  },
+
+  Product: {
+    seller: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.user.findUnique({
+        where: { id: parent.sellerId },
+        include: {
+          profile: true
+        }
+      });
+    },
+
+    images: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.productImage.findMany({
+        where: { productId: parent.id },
+        orderBy: { isPrimary: 'desc' }
+      });
+    },
+
+    videos: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.productVideo.findMany({
+        where: { productId: parent.id }
+      });
+    },
+
+    features: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.productFeature.findMany({
+        where: { productId: parent.id }
+      });
+    },
+
+    categories: async (parent: any, _: any, context: GraphQLContext) => {
+      const productCategories = await context.prisma.productCategory.findMany({
+        where: { productId: parent.id },
+        include: {
+          category: true
+        }
+      });
+      return productCategories.map(pc => pc.category);
+    },
+
+    discount: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.discount.findUnique({
+        where: { productId: parent.id }
+      });
+    },
+
+    reviews: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.ratingAndReview.findMany({
+        where: { productId: parent.id },
+        include: {
+          user: {
+            include: {
+              profile: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    },
+
+    averageRating: async (parent: any, _: any, context: GraphQLContext) => {
+      const result = await context.prisma.ratingAndReview.aggregate({
+        where: { productId: parent.id },
+        _avg: { rating: true }
+      });
+      return result._avg.rating || 0;
+    },
+
+    totalReviews: async (parent: any, _: any, context: GraphQLContext) => {
+      return context.prisma.ratingAndReview.count({
+        where: { productId: parent.id }
+      });
+    },
+  },
+};

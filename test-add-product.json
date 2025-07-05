@@ -1,0 +1,51 @@
+{
+  "query": "mutation AddProductWithImagesAndVideos($input: AddProductInput!) { addProduct(input: $input) { id name description price sku stock status images { id url altText isPrimary } video { id url publicId } features { id feature value } createdAt updatedAt } }",
+  "variables": {
+    "input": {
+      "name": "Test Smart Watch",
+      "description": "A smart watch with fitness tracking capabilities",
+      "price": 299.99,
+      "sku": "TSW-001",
+      "stock": 10,
+      "status": "PENDING",
+      "features": [
+        {
+          "feature": "Heart Rate Monitor",
+          "value": "24/7 tracking"
+        },
+        {
+          "feature": "GPS", 
+          "value": "Built-in"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://example.com/watch-main.jpg",
+          "altText": "Smart Watch Main View",
+          "isPrimary": true
+        },
+        {
+          "url": "https://example.com/watch-side.jpg", 
+          "altText": "Smart Watch Side View",
+          "isPrimary": false
+        }
+      ],
+      "videos": [
+        {
+          "url": "https://example.com/watch-demo.mp4",
+          "publicId": "products/videos/watch_demo_123"
+        }
+      ],
+      "specifications": [
+        {
+          "key": "Display",
+          "value": "1.4 inch AMOLED"
+        },
+        {
+          "key": "Battery Life",
+          "value": "7 days"
+        }
+      ]
+    }
+  }
+}
