@@ -35,6 +35,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ProductFormSkeleton } from "@/components/skeletons/ProductFormSkeleton";
+import { toast } from "sonner";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { UploadProgressModal, useUploadProgress } from "@/components/UploadProgressModal";
+import { Image as ImageIcon, Video, Package } from "lucide-react";
 
 // GraphQL Queries and Mutations
 const GET_PRODUCT = gql`
@@ -162,6 +167,8 @@ export default function EditProductPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [newFeature, setNewFeature] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const uploadProgress = useUploadProgress();
 
   // Fetch product data
   const { data, loading, error } = useQuery(GET_PRODUCT, {
@@ -225,15 +232,8 @@ export default function EditProductPage() {
   }, [data]);
 
   // Loading state
-  if (loading) {
-    return (
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading product...</span>
-        </div>
-      </div>
-    );
+  if (loading || isLoading) {
+    return <ProductFormSkeleton />;
   }
 
   // Error state
@@ -489,51 +489,114 @@ export default function EditProductPage() {
   const handleSave = async () => {
     if (!validateStep(currentStep)) return;
 
-    setIsLoading(true);
+    // Initialize upload steps
+    const steps = [];
+    
+    const newImages = formData.images.filter(img => img.file);
+    const newVideos = formData.videos.filter(vid => vid.file);
+    
+    if (newImages.length > 0) {
+      steps.push({
+        id: 'images',
+        label: `Uploading Images (${newImages.length})`,
+        icon: <ImageIcon className="w-5 h-5" />
+      });
+    }
+    
+    if (newVideos.length > 0) {
+      steps.push({
+        id: 'videos',
+        label: `Uploading Videos (${newVideos.length})`,
+        icon: <Video className="w-5 h-5" />
+      });
+    }
+    
+    steps.push({
+      id: 'product',
+      label: 'Updating Product',
+      icon: <Package className="w-5 h-5" />
+    });
+    
+    uploadProgress.initializeSteps(steps);
+    uploadProgress.openModal();
+
     try {
       // Upload new images
-      console.log("uploading images", formData.images);
       const uploadedImages = [];
-      for (const image of formData.images) {
-        if (image.file) {
-          // New image to upload
-          const result = await uploadToCloudinary(image.file, "image");
-          uploadedImages.push({
-            url: result.url,
-            altText: image.altText || "",
-            isPrimary: image.isPrimary || false,
-          });
-        } else {
-          // Existing image
+      if (newImages.length > 0) {
+        uploadProgress.startStep('images', `Starting upload of ${newImages.length} new images...`);
+        
+        for (let i = 0; i < formData.images.length; i++) {
+          const image = formData.images[i];
+          if (image.file) {
+            const imageIndex = newImages.findIndex(img => img.file === image.file);
+            const progressPercent = Math.round(((imageIndex + 0.5) / newImages.length) * 100);
+            uploadProgress.updateStepProgress('images', progressPercent, `Uploading image ${imageIndex + 1} of ${newImages.length}...`);
+            
+            const result = await uploadToCloudinary(image.file, "image");
+            uploadedImages.push({
+              url: result.url,
+              altText: image.altText || "",
+              isPrimary: image.isPrimary || false,
+            });
+          } else {
+            // Existing image
+            uploadedImages.push({
+              url: image.url,
+              altText: image.altText || "",
+              isPrimary: image.isPrimary || false,
+            });
+          }
+        }
+        
+        uploadProgress.completeStep('images', `Successfully uploaded ${newImages.length} new images`);
+      } else {
+        // No new images, just use existing ones
+        formData.images.forEach(image => {
           uploadedImages.push({
             url: image.url,
             altText: image.altText || "",
             isPrimary: image.isPrimary || false,
           });
-        }
+        });
       }
-      console.log("uploaded images", uploadedImages);
 
-      console.log("uploading videos", formData.videos);
       // Upload new videos
       const uploadedVideos = [];
-      for (const video of formData.videos) {
-        if (video.file) {
-          // New video to upload
-          const result = await uploadToCloudinary(video.file, "video");
-          uploadedVideos.push({
-            url: result.url,
-            publicId: result.publicId,
-          });
-        } else {
-          // Existing video
+      if (newVideos.length > 0) {
+        uploadProgress.startStep('videos', `Starting upload of ${newVideos.length} new videos...`);
+        
+        for (let i = 0; i < formData.videos.length; i++) {
+          const video = formData.videos[i];
+          if (video.file) {
+            const videoIndex = newVideos.findIndex(vid => vid.file === video.file);
+            const progressPercent = Math.round(((videoIndex + 0.5) / newVideos.length) * 100);
+            uploadProgress.updateStepProgress('videos', progressPercent, `Uploading video ${videoIndex + 1} of ${newVideos.length}...`);
+            
+            const result = await uploadToCloudinary(video.file, "video");
+            uploadedVideos.push({
+              url: result.url,
+              publicId: result.publicId,
+            });
+          } else {
+            // Existing video
+            uploadedVideos.push({
+              url: video.url,
+              publicId: video.publicId,
+            });
+          }
+        }
+        
+        uploadProgress.completeStep('videos', `Successfully uploaded ${newVideos.length} new videos`);
+      } else {
+        // No new videos, just use existing ones
+        formData.videos.forEach(video => {
           uploadedVideos.push({
             url: video.url,
             publicId: video.publicId,
           });
-        }
+        });
       }
-      console.log("uploaded videos", uploadedVideos);
 
       // Format features properly
       const formattedFeatures = formData.features.map((feature) => ({
@@ -541,8 +604,9 @@ export default function EditProductPage() {
         value: feature.value || "", // Ensure value is always a string
       }));
 
-      console.log("updating product");
       // Update product
+      uploadProgress.startStep('product', 'Updating product in database...');
+      
       const result = await updateProduct({
         variables: {
           id: productId,
@@ -559,44 +623,52 @@ export default function EditProductPage() {
         },
       });
 
-      console.log("update result", result);
-
       if (result.data?.updateProduct?.success) {
-        router.push("/products");
+        uploadProgress.completeStep('product', 'Product updated successfully!');
+        
+        // Wait a moment to show completion
+        setTimeout(() => {
+          uploadProgress.closeModal();
+          toast.success("Product updated successfully!", {
+            description: "Your product changes have been saved."
+          });
+          router.push("/products");
+        }, 1500);
       } else {
-        alert(
-          "Failed to update product: " +
-            (result.data?.updateProduct?.message || "Unknown error")
-        );
+        uploadProgress.errorStep('product', result.data?.updateProduct?.message || 'Failed to update product');
+        toast.error("Failed to update product", {
+          description: result.data?.updateProduct?.message || "Unknown error occurred"
+        });
       }
     } catch (error) {
       console.error("Update error:", error);
-      alert("Failed to update product");
-    } finally {
-      setIsLoading(false);
+      const currentStepId = uploadProgress.currentStep;
+      uploadProgress.errorStep(currentStepId, error instanceof Error ? error.message : 'An error occurred');
+      
+      toast.error("Failed to update product", {
+        description: "An error occurred while updating the product"
+      });
     }
   };
 
   const handleDelete = async () => {
-    if (
-      confirm(
-        "Are you sure you want to delete this product? This action cannot be undone."
-      )
-    ) {
-      setIsLoading(true);
-      try {
-        const result = await deleteProduct({ variables: { id: productId } });
-        if (result.data?.deleteProduct?.success) {
-          router.push("/products");
-        } else {
-          alert("Failed to delete product");
-        }
-      } catch (error) {
-        console.error("Delete error:", error);
-        alert("Failed to delete product");
-      } finally {
-        setIsLoading(false);
+    try {
+      const result = await deleteProduct({ variables: { id: productId } });
+      if (result.data?.deleteProduct?.success) {
+        toast.success("Product deleted successfully!", {
+          description: "The product has been removed from your store."
+        });
+        router.push("/products");
+      } else {
+        toast.error("Failed to delete product", {
+          description: result.data?.deleteProduct?.message || "Unknown error occurred"
+        });
       }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete product", {
+        description: "An error occurred while deleting the product"
+      });
     }
   };
 
@@ -869,95 +941,7 @@ export default function EditProductPage() {
             </FormField>
           </div>
         );
-      case 5:
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField label="Weight (kg)" error={errors.weight}>
-                <ValidatedInput
-                  type="number"
-                  placeholder="0.0"
-                  value={formData.weight}
-                  onChange={(e) => updateFormData("weight", e.target.value)}
-                  error={errors.weight}
-                />
-              </FormField>
-              <FormField label="Length (cm)">
-                <ValidatedInput type="number" placeholder="0" />
-              </FormField>
-              <FormField label="Width (cm)">
-                <ValidatedInput type="number" placeholder="0" />
-              </FormField>
-            </div>
-            <FormField label="Shipping Class">
-              <ValidatedSelect
-                value={formData.shippingClass}
-                onValueChange={(value) =>
-                  updateFormData("shippingClass", value)
-                }
-                placeholder="Select shipping class"
-              >
-                <SelectItem value="standard">Standard Shipping</SelectItem>
-                <SelectItem value="express">Express Shipping</SelectItem>
-                <SelectItem value="overnight">Overnight Shipping</SelectItem>
-                <SelectItem value="free">Free Shipping</SelectItem>
-              </ValidatedSelect>
-            </FormField>
-            <FormField label="Delivery Options">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="standard-delivery" />
-                  <FormField label="Standard Delivery (5-7 days)" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="express-delivery" />
-                  <FormField label="Express Delivery (2-3 days)" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="same-day" />
-                  <FormField label="Same Day Delivery" />
-                </div>
-              </div>
-            </FormField>
-          </div>
-        );
-      case 6:
-        return (
-          <div className="space-y-6">
-            <FormField label="Return Policy">
-              <ValidatedTextarea
-                placeholder="Describe your return policy..."
-                className="min-h-[120px]"
-                value={formData.returnPolicy}
-                onChange={(e) => updateFormData("returnPolicy", e.target.value)}
-              />
-            </FormField>
-            <FormField label="Warranty Information">
-              <ValidatedTextarea
-                placeholder="Describe warranty terms..."
-                className="min-h-[120px]"
-                value={formData.warranty}
-                onChange={(e) => updateFormData("warranty", e.target.value)}
-              />
-            </FormField>
-            <FormField label="Additional Policies">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="exchange-allowed" />
-                  <FormField label="Allow exchanges" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="refund-allowed" />
-                  <FormField label="Allow refunds" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="international-shipping" />
-                  <FormField label="International shipping available" />
-                </div>
-              </div>
-            </FormField>
-          </div>
-        );
+      // Remove cases 5 and 6 since they're not being used and have missing fields
       default:
         return null;
     }
@@ -979,7 +963,7 @@ export default function EditProductPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDelete}
+            onClick={() => setShowDeleteModal(true)}
             disabled={isLoading}
           >
             <Trash2 className="mr-2 h-4 w-4" />
@@ -1064,12 +1048,12 @@ export default function EditProductPage() {
             Previous
           </Button>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleSave} disabled={isLoading}>
+            <Button variant="outline" onClick={handleSave} disabled={uploadProgress.isOpen}>
               <Save className="mr-2 h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Changes"}
+              Save Changes
             </Button>
             {currentStep === steps.length ? (
-              <Button onClick={handleSave} disabled={isLoading}>
+              <Button onClick={handleSave} disabled={uploadProgress.isOpen}>
                 Update Product
               </Button>
             ) : (
@@ -1081,6 +1065,27 @@ export default function EditProductPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload Progress Modal */}
+      <UploadProgressModal
+        open={uploadProgress.isOpen}
+        onOpenChange={uploadProgress.closeModal}
+        steps={uploadProgress.steps}
+        currentStep={uploadProgress.currentStep}
+        overallProgress={uploadProgress.overallProgress}
+        title="Updating Product"
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        onConfirm={handleDelete}
+        title="Delete Product"
+        description="Are you sure you want to delete"
+        itemName={`"${formData.name}"`}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

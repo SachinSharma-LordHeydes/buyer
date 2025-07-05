@@ -7,6 +7,7 @@ import ReviewStep from "@/components/profile_setup/ReviewStep";
 import StoreAddressStep from "@/components/profile_setup/StoreAddressStep";
 import StoreDetailsStep from "@/components/profile_setup/StoreDetailsStep";
 import ProfileSetupSuccess from "@/components/profile_setup/ProfileSetupSuccess";
+import { ProfileSetupSkeleton } from "@/components/skeletons/ProfileSetupSkeleton";
 import {
   Card,
   CardContent,
@@ -20,6 +21,7 @@ import { userVar } from "@/lib/state/userState";
 import { gql, useMutation, useQuery, useReactiveVar } from "@apollo/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const SETUP_PROFILE = gql`
   mutation SetupProfile($input: ProfileSetupInput!) {
@@ -66,7 +68,10 @@ export default function ProfileSetupClient() {
     }
   }, [loading, data, router]);
 
-  // if (loading) return <Loading />;
+  // Show skeleton while loading
+  if (loading) {
+    return <ProfileSetupSkeleton />;
+  }
 
   const updateFormData = (stepData: any, stepKey: keyof typeof formData) => {
     profileFormVar({
@@ -93,15 +98,22 @@ export default function ProfileSetupClient() {
       console.log("Setup profile response:", data);
       if (data?.setupProfile?.success) {
         console.log("Profile setup successful!");
+        toast.success("Profile setup completed successfully!", {
+          description: "Welcome to the platform! Your seller account is now active."
+        });
         // Show success screen first
         setIsSuccess(true);
       } else {
         console.error("Profile setup failed:", data?.setupProfile?.message);
-        alert(`Profile setup failed: ${data?.setupProfile?.message || 'Unknown error'}`);
+        toast.error("Profile setup failed", {
+          description: data?.setupProfile?.message || 'Unknown error occurred'
+        });
       }
     } catch (err) {
       console.error("Submission error:", err);
-      alert(`Submission error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error("Submission error", {
+        description: err instanceof Error ? err.message : 'Unknown error occurred'
+      });
     }
   };
 

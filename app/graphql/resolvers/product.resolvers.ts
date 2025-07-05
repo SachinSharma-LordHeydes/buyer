@@ -194,66 +194,88 @@ export const productResolvers = {
 
         validateProductInput(input);
 
-        const product = await context.prisma.$transaction(async (tx) => {
-          // Create product
-          const newProduct = await tx.product.create({
-            data: {
-              name: input.name.trim(),
-              description: input.description?.trim() || null,
-              price: input.price,
-              sku: input.sku?.trim() || null,
-              stock: input.stock,
-              sellerId: user.id,
-              status: ProductStatus.PENDING,
-            },
-          });
-
-          // Create images
-          if (input.images && input.images.length > 0) {
-            await tx.productImage.createMany({
-              data: input.images.map((img: any, index: number) => ({
-                productId: newProduct.id,
-                url: img.url,
-                altText: img.altText || null,
-                isPrimary: img.isPrimary || index === 0,
-              })),
+        const product = await context.prisma.$transaction(
+          async (tx) => {
+            // Create product
+            const newProduct = await tx.product.create({
+              data: {
+                name: input.name.trim(),
+                description: input.description?.trim() || null,
+                price: input.price,
+                sku: input.sku?.trim() || null,
+                stock: input.stock,
+                sellerId: user.id,
+                status: ProductStatus.PENDING,
+              },
             });
-          }
 
-          // Create videos
-          if (input.videos && input.videos.length > 0) {
-            await tx.productVideo.createMany({
-              data: input.videos.map((video: any) => ({
-                productId: newProduct.id,
-                url: video.url,
-                publicId: video.publicId,
-              })),
-            });
-          }
+            // Batch all create operations for better performance
+            const createPromises = [];
 
-          // Create features
-          if (input.features && input.features.length > 0) {
-            await tx.productFeature.createMany({
-              data: input.features.map((feature: any) => ({
-                productId: newProduct.id,
-                feature: feature.feature,
-                value: feature.value || null,
-              })),
-            });
-          }
+            // Create images
+            if (input.images && input.images.length > 0) {
+              createPromises.push(
+                tx.productImage.createMany({
+                  data: input.images.map((img: any, index: number) => ({
+                    productId: newProduct.id,
+                    url: img.url,
+                    altText: img.altText || null,
+                    isPrimary: img.isPrimary || index === 0,
+                  })),
+                })
+              );
+            }
 
-          // Create category associations
-          if (input.categories && input.categories.length > 0) {
-            await tx.productCategory.createMany({
-              data: input.categories.map((categoryId: string) => ({
-                productId: newProduct.id,
-                categoryId,
-              })),
-            });
-          }
+            // Create videos
+            if (input.videos && input.videos.length > 0) {
+              createPromises.push(
+                tx.productVideo.createMany({
+                  data: input.videos.map((video: any) => ({
+                    productId: newProduct.id,
+                    url: video.url,
+                    publicId: video.publicId,
+                  })),
+                })
+              );
+            }
 
-          return newProduct;
-        });
+            // Create features
+            if (input.features && input.features.length > 0) {
+              createPromises.push(
+                tx.productFeature.createMany({
+                  data: input.features.map((feature: any) => ({
+                    productId: newProduct.id,
+                    feature: feature.feature,
+                    value: feature.value || null,
+                  })),
+                })
+              );
+            }
+
+            // Create category associations
+            if (input.categories && input.categories.length > 0) {
+              createPromises.push(
+                tx.productCategory.createMany({
+                  data: input.categories.map((categoryId: string) => ({
+                    productId: newProduct.id,
+                    categoryId,
+                  })),
+                })
+              );
+            }
+
+            // Execute all creates in parallel
+            if (createPromises.length > 0) {
+              await Promise.all(createPromises);
+            }
+
+            return newProduct;
+          },
+          {
+            timeout: 30000, // 30 seconds timeout
+            maxWait: 35000, // Maximum wait time
+          }
+        );
 
         // Fetch the complete product with relations
         const createdProduct = await context.prisma.product.findUnique({
@@ -370,68 +392,78 @@ export const productResolvers = {
             data: updateData,
           });
 
-          // Update images if provided
+          // Batch all delete operations first
+          const deletePromises = [];
+          
           if (cleanInput.images !== undefined) {
             console.log("updating images:", cleanInput.images);
-
-            // Delete existing images
-            await tx.productImage.deleteMany({
-              where: { productId: id },
-            });
-
-            // Create new images
-            if (cleanInput.images.length > 0) {
-              await tx.productImage.createMany({
+            deletePromises.push(
+              tx.productImage.deleteMany({ where: { productId: id } })
+            );
+          }
+          
+          if (cleanInput.videos !== undefined) {
+            console.log("updating videos:", cleanInput.videos);
+            deletePromises.push(
+              tx.productVideo.deleteMany({ where: { productId: id } })
+            );
+          }
+          
+          if (cleanInput.features !== undefined) {
+            console.log("updating features:", cleanInput.features);
+            deletePromises.push(
+              tx.productFeature.deleteMany({ where: { productId: id } })
+            );
+          }
+          
+          // Execute all deletes in parallel
+          if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
+          }
+          
+          // Batch all create operations
+          const createPromises = [];
+          
+          if (cleanInput.images !== undefined && cleanInput.images.length > 0) {
+            createPromises.push(
+              tx.productImage.createMany({
                 data: cleanInput.images.map((img: any, index: number) => ({
                   productId: id,
                   url: img.url,
                   altText: img.altText,
                   isPrimary: img.isPrimary || index === 0,
                 })),
-              });
-            }
+              })
+            );
           }
-
-          // Update videos if provided
-          if (cleanInput.videos !== undefined) {
-            console.log("updating videos:", cleanInput.videos);
-
-            // Delete existing videos
-            await tx.productVideo.deleteMany({
-              where: { productId: id },
-            });
-
-            // Create new videos
-            if (cleanInput.videos.length > 0) {
-              await tx.productVideo.createMany({
+          
+          if (cleanInput.videos !== undefined && cleanInput.videos.length > 0) {
+            createPromises.push(
+              tx.productVideo.createMany({
                 data: cleanInput.videos.map((video: any) => ({
                   productId: id,
                   url: video.url,
                   publicId: video.publicId,
                 })),
-              });
-            }
+              })
+            );
           }
-
-          // Update features if provided
-          if (cleanInput.features !== undefined) {
-            console.log("updating features:", cleanInput.features);
-
-            // Delete existing features
-            await tx.productFeature.deleteMany({
-              where: { productId: id },
-            });
-
-            // Create new features
-            if (cleanInput.features.length > 0) {
-              await tx.productFeature.createMany({
+          
+          if (cleanInput.features !== undefined && cleanInput.features.length > 0) {
+            createPromises.push(
+              tx.productFeature.createMany({
                 data: cleanInput.features.map((feature: any) => ({
                   productId: id,
                   feature: feature.feature,
                   value: feature.value,
                 })),
-              });
-            }
+              })
+            );
+          }
+          
+          // Execute all creates in parallel
+          if (createPromises.length > 0) {
+            await Promise.all(createPromises);
           }
 
           // Update categories if provided
@@ -455,7 +487,12 @@ export const productResolvers = {
           }
 
           return product;
-        });
+        },
+        {
+          timeout: 30000, // 30 seconds timeout
+          maxWait: 35000, // Maximum wait time
+        }
+        );
 
         // Fetch the complete updated product
         const product = await context.prisma.product.findUnique({

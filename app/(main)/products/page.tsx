@@ -13,6 +13,9 @@ import Link from "next/link"
 import Image from "next/image"
 import gql from "graphql-tag"
 import { useQuery, useMutation } from "@apollo/client"
+import { toast } from "sonner"
+import { ProductsSkeleton } from "@/components/skeletons/ProductsSkeleton"
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
 
 // GraphQL Query to fetch seller's products
 const GET_SELLER_PRODUCTS = gql`
@@ -52,6 +55,8 @@ const DELETE_PRODUCT = gql`
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("all")
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<{id: string, name: string} | null>(null)
   
   // Fetch products with GraphQL
   const { data, loading, error, refetch } = useQuery(GET_SELLER_PRODUCTS, {
@@ -70,12 +75,23 @@ export default function ProductsPage() {
 
   // Delete product mutation
   const [deleteProduct] = useMutation(DELETE_PRODUCT, {
-    onCompleted: () => {
-      refetch(); // Refresh the list after deletion
+    onCompleted: (data) => {
+      if (data?.deleteProduct?.success) {
+        toast.success("Product deleted successfully!", {
+          description: "The product has been removed from your store."
+        });
+        refetch(); // Refresh the list after deletion
+      } else {
+        toast.error("Failed to delete product", {
+          description: data?.deleteProduct?.message || "Unknown error occurred"
+        });
+      }
     },
     onError: (error) => {
       console.error('Delete error:', error);
-      alert('Failed to delete product: ' + error.message);
+      toast.error("Failed to delete product", {
+        description: error.message
+      });
     }
   });
 
@@ -96,12 +112,17 @@ export default function ProductsPage() {
   })
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
-    if (window.confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
-      try {
-        await deleteProduct({ variables: { id: productId } });
-      } catch (error) {
-        console.error('Delete failed:', error);
-      }
+    setProductToDelete({ id: productId, name: productName });
+    setShowDeleteModal(true);
+  }
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    
+    try {
+      await deleteProduct({ variables: { id: productToDelete.id } });
+    } catch (error) {
+      console.error('Delete failed:', error);
     }
   }
 
@@ -141,14 +162,7 @@ export default function ProductsPage() {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading products...</span>
-        </div>
-      </div>
-    )
+    return <ProductsSkeleton />;
   }
 
   // Error state
@@ -374,6 +388,19 @@ export default function ProductsPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={showDeleteModal}
+        onOpenChange={(open) => {
+          setShowDeleteModal(open);
+          if (!open) setProductToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Product"
+        description="Are you sure you want to delete"
+        itemName={productToDelete ? `"${productToDelete.name}"` : undefined}
+      />
     </div>
   )
 }

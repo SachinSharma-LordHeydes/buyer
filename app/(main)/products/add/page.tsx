@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { X, ArrowLeft, ArrowRight, Save, Plus } from "lucide-react"
+import { X, ArrowLeft, ArrowRight, Save, Plus, Image as ImageIcon, Video, Package } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { FormField, ValidatedInput, ValidatedTextarea } from "@/components/form-field"
 import Link from "next/link"
 import Image from "next/image"
 import { useMutation } from "@apollo/client"
 import gql from "graphql-tag"
+import { toast } from "sonner"
+import { UploadProgressModal, useUploadProgress } from "@/components/UploadProgressModal"
 
 // GraphQL Mutations
 const CREATE_PRODUCT = gql`
@@ -53,12 +55,7 @@ export default function AddProductPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isLoading, setIsLoading] = useState(false)
   const [newFeature, setNewFeature] = useState("")
-
-  const [createProduct] = useMutation(CREATE_PRODUCT);
-  const [generateUploadUrl] = useMutation(GENERATE_UPLOAD_URL);
-
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -69,6 +66,12 @@ export default function AddProductPage() {
     images: [] as { url: string; altText?: string; isPrimary?: boolean; file?: File }[],
     videos: [] as { url: string; publicId?: string; file?: File }[],
   })
+
+  const [createProduct] = useMutation(CREATE_PRODUCT);
+  const [generateUploadUrl] = useMutation(GENERATE_UPLOAD_URL);
+  
+  // Upload progress hook
+  const uploadProgress = useUploadProgress();
 
   const progress = (currentStep / steps.length) * 100;
 
@@ -170,34 +173,83 @@ export default function AddProductPage() {
   const handleSave = async () => {
     if (!validateStep(currentStep)) return;
     
-    setIsLoading(true)
+    // Initialize upload steps
+    const steps = [];
+    
+    if (formData.images.length > 0) {
+      steps.push({
+        id: 'images',
+        label: `Uploading Images (${formData.images.length})`,
+        icon: <ImageIcon className="w-5 h-5" />
+      });
+    }
+    
+    if (formData.videos.length > 0) {
+      steps.push({
+        id: 'videos',
+        label: `Uploading Videos (${formData.videos.length})`,
+        icon: <Video className="w-5 h-5" />
+      });
+    }
+    
+    steps.push({
+      id: 'product',
+      label: 'Creating Product',
+      icon: <Package className="w-5 h-5" />
+    });
+    
+    uploadProgress.initializeSteps(steps);
+    uploadProgress.openModal();
+    
     try {
       // Upload new images
       const uploadedImages = [];
-      for (const image of formData.images) {
-        if (image.file) {
-          const result = await uploadToCloudinary(image.file, "image");
-          uploadedImages.push({
-            url: result.url,
-            altText: image.altText || "",
-            isPrimary: image.isPrimary || false
-          });
+      if (formData.images.length > 0) {
+        uploadProgress.startStep('images', `Starting upload of ${formData.images.length} images...`);
+        
+        for (let i = 0; i < formData.images.length; i++) {
+          const image = formData.images[i];
+          if (image.file) {
+            const progressPercent = Math.round(((i + 0.5) / formData.images.length) * 100);
+            uploadProgress.updateStepProgress('images', progressPercent, `Uploading image ${i + 1} of ${formData.images.length}...`);
+            
+            const result = await uploadToCloudinary(image.file, "image");
+            uploadedImages.push({
+              url: result.url,
+              altText: image.altText || "",
+              isPrimary: image.isPrimary || false
+            });
+          }
         }
+        
+        uploadProgress.completeStep('images', `Successfully uploaded ${formData.images.length} images`);
       }
 
       // Upload new videos
       const uploadedVideos = [];
-      for (const video of formData.videos) {
-        if (video.file) {
-          const result = await uploadToCloudinary(video.file, "video");
-          uploadedVideos.push({
-            url: result.url,
-            publicId: result.publicId
-          });
+      if (formData.videos.length > 0) {
+        uploadProgress.startStep('videos', `Starting upload of ${formData.videos.length} videos...`);
+        
+        for (let i = 0; i < formData.videos.length; i++) {
+          const video = formData.videos[i];
+          if (video.file) {
+            const progressPercent = Math.round(((i + 0.5) / formData.videos.length) * 100);
+            uploadProgress.updateStepProgress('videos', progressPercent, `Uploading video ${i + 1} of ${formData.videos.length}...`);
+            
+            const result = await uploadToCloudinary(video.file, "video");
+            uploadedVideos.push({
+              url: result.url,
+              publicId: result.publicId
+            });
+          }
         }
+        
+        uploadProgress.completeStep('videos', `Successfully uploaded ${formData.videos.length} videos`);
       }
 
       // Create product
+      uploadProgress.startStep('product', 'Creating product in database...');
+      
       const result = await createProduct({
         variables: {
           input: {
@@ -214,15 +266,30 @@ export default function AddProductPage() {
       });
 
       if (result.data?.createProduct?.success) {
-        router.push('/products');
+        uploadProgress.completeStep('product', 'Product created successfully!');
+        
+        // Wait a moment to show completion
+        setTimeout(() => {
+          uploadProgress.closeModal();
+          toast.success("Product created successfully!", {
+            description: "Your product has been added to your store."
+          });
+          router.push('/products');
+        }, 1500);
       } else {
-        alert('Failed to create product: ' + result.data?.createProduct?.message);
+        uploadProgress.errorStep('product', result.data?.createProduct?.message || 'Failed to create product');
+        toast.error("Failed to create product", {
+          description: result.data?.createProduct?.message || "Unknown error occurred"
+        });
       }
     } catch (error) {
       console.error('Create error:', error);
-      alert('Failed to create product: ' + error.message);
-    } finally {
-      setIsLoading(false)
+      const currentStepId = uploadProgress.currentStep;
+      uploadProgress.errorStep(currentStepId, error instanceof Error ? error.message : 'An error occurred');
+      
+      toast.error("Failed to create product", {
+        description: error instanceof Error ? error.message : "An error occurred"
+      });
     }
   }
 
@@ -576,12 +643,12 @@ export default function AddProductPage() {
             Previous
           </Button>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleSave} disabled={isLoading}>
+            <Button variant="outline" onClick={handleSave} disabled={uploadProgress.isOpen}>
               <Save className="mr-2 h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Product"}
+              Save Product
             </Button>
             {currentStep === steps.length ? (
-              <Button onClick={handleSave} disabled={isLoading}>
+              <Button onClick={handleSave} disabled={uploadProgress.isOpen}>
                 Publish Product
               </Button>
             ) : (
@@ -593,6 +660,16 @@ export default function AddProductPage() {
           </div>
         </div>
       </div>
+      
+      {/* Upload Progress Modal */}
+      <UploadProgressModal
+        open={uploadProgress.isOpen}
+        onOpenChange={uploadProgress.closeModal}
+        steps={uploadProgress.steps}
+        currentStep={uploadProgress.currentStep}
+        overallProgress={uploadProgress.overallProgress}
+        title="Creating Product"
+      />
     </div>
   );
 }
