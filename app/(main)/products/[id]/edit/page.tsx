@@ -1,11 +1,12 @@
 "use client";
 
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import {
   FormField,
   ValidatedInput,
-  ValidatedSelect,
   ValidatedTextarea,
 } from "@/components/form-field";
+import { ProductFormSkeleton } from "@/components/skeletons/ProductFormSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,31 +16,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  UploadProgressModal,
+  useUploadProgress,
+} from "@/components/UploadProgressModal";
 import { useMutation, useQuery } from "@apollo/client";
 import gql from "graphql-tag";
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Loader2,
+  Image as ImageIcon,
+  Package,
   Plus,
   Save,
   Trash2,
+  Video,
   X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ProductFormSkeleton } from "@/components/skeletons/ProductFormSkeleton";
 import { toast } from "sonner";
-import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { UploadProgressModal, useUploadProgress } from "@/components/UploadProgressModal";
-import { Image as ImageIcon, Video, Package } from "lucide-react";
 
 // GraphQL Queries and Mutations
 const GET_PRODUCT = gql`
@@ -73,24 +74,6 @@ const GET_PRODUCT = gql`
     }
   }
 `;
-
-// const UPDATE_PRODUCT = gql`
-//   mutation UpdateProduct($id: ID!, $input: UpdateProductInput!) {
-//     updateProduct(id: $id, input: $input) {
-//       success
-//       message
-//       product {
-//         id
-//         name
-//         description
-//         price
-//         sku
-//         stock
-//         status
-//       }
-//     }
-//   }
-// `;
 
 const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($id: ID!, $input: UpdateProductInput!) {
@@ -491,32 +474,32 @@ export default function EditProductPage() {
 
     // Initialize upload steps
     const steps = [];
-    
-    const newImages = formData.images.filter(img => img.file);
-    const newVideos = formData.videos.filter(vid => vid.file);
-    
+
+    const newImages = formData.images.filter((img) => img.file);
+    const newVideos = formData.videos.filter((vid) => vid.file);
+
     if (newImages.length > 0) {
       steps.push({
-        id: 'images',
+        id: "images",
         label: `Uploading Images (${newImages.length})`,
-        icon: <ImageIcon className="w-5 h-5" />
+        icon: <ImageIcon className="w-5 h-5" />,
       });
     }
-    
+
     if (newVideos.length > 0) {
       steps.push({
-        id: 'videos',
+        id: "videos",
         label: `Uploading Videos (${newVideos.length})`,
-        icon: <Video className="w-5 h-5" />
+        icon: <Video className="w-5 h-5" />,
       });
     }
-    
+
     steps.push({
-      id: 'product',
-      label: 'Updating Product',
-      icon: <Package className="w-5 h-5" />
+      id: "product",
+      label: "Updating Product",
+      icon: <Package className="w-5 h-5" />,
     });
-    
+
     uploadProgress.initializeSteps(steps);
     uploadProgress.openModal();
 
@@ -524,15 +507,26 @@ export default function EditProductPage() {
       // Upload new images
       const uploadedImages = [];
       if (newImages.length > 0) {
-        uploadProgress.startStep('images', `Starting upload of ${newImages.length} new images...`);
-        
+        uploadProgress.startStep(
+          "images",
+          `Starting upload of ${newImages.length} new images...`
+        );
+
         for (let i = 0; i < formData.images.length; i++) {
           const image = formData.images[i];
           if (image.file) {
-            const imageIndex = newImages.findIndex(img => img.file === image.file);
-            const progressPercent = Math.round(((imageIndex + 0.5) / newImages.length) * 100);
-            uploadProgress.updateStepProgress('images', progressPercent, `Uploading image ${imageIndex + 1} of ${newImages.length}...`);
-            
+            const imageIndex = newImages.findIndex(
+              (img) => img.file === image.file
+            );
+            const progressPercent = Math.round(
+              ((imageIndex + 0.5) / newImages.length) * 100
+            );
+            uploadProgress.updateStepProgress(
+              "images",
+              progressPercent,
+              `Uploading image ${imageIndex + 1} of ${newImages.length}...`
+            );
+
             const result = await uploadToCloudinary(image.file, "image");
             uploadedImages.push({
               url: result.url,
@@ -548,11 +542,14 @@ export default function EditProductPage() {
             });
           }
         }
-        
-        uploadProgress.completeStep('images', `Successfully uploaded ${newImages.length} new images`);
+
+        uploadProgress.completeStep(
+          "images",
+          `Successfully uploaded ${newImages.length} new images`
+        );
       } else {
         // No new images, just use existing ones
-        formData.images.forEach(image => {
+        formData.images.forEach((image) => {
           uploadedImages.push({
             url: image.url,
             altText: image.altText || "",
@@ -564,15 +561,26 @@ export default function EditProductPage() {
       // Upload new videos
       const uploadedVideos = [];
       if (newVideos.length > 0) {
-        uploadProgress.startStep('videos', `Starting upload of ${newVideos.length} new videos...`);
-        
+        uploadProgress.startStep(
+          "videos",
+          `Starting upload of ${newVideos.length} new videos...`
+        );
+
         for (let i = 0; i < formData.videos.length; i++) {
           const video = formData.videos[i];
           if (video.file) {
-            const videoIndex = newVideos.findIndex(vid => vid.file === video.file);
-            const progressPercent = Math.round(((videoIndex + 0.5) / newVideos.length) * 100);
-            uploadProgress.updateStepProgress('videos', progressPercent, `Uploading video ${videoIndex + 1} of ${newVideos.length}...`);
-            
+            const videoIndex = newVideos.findIndex(
+              (vid) => vid.file === video.file
+            );
+            const progressPercent = Math.round(
+              ((videoIndex + 0.5) / newVideos.length) * 100
+            );
+            uploadProgress.updateStepProgress(
+              "videos",
+              progressPercent,
+              `Uploading video ${videoIndex + 1} of ${newVideos.length}...`
+            );
+
             const result = await uploadToCloudinary(video.file, "video");
             uploadedVideos.push({
               url: result.url,
@@ -586,11 +594,14 @@ export default function EditProductPage() {
             });
           }
         }
-        
-        uploadProgress.completeStep('videos', `Successfully uploaded ${newVideos.length} new videos`);
+
+        uploadProgress.completeStep(
+          "videos",
+          `Successfully uploaded ${newVideos.length} new videos`
+        );
       } else {
         // No new videos, just use existing ones
-        formData.videos.forEach(video => {
+        formData.videos.forEach((video) => {
           uploadedVideos.push({
             url: video.url,
             publicId: video.publicId,
@@ -605,8 +616,8 @@ export default function EditProductPage() {
       }));
 
       // Update product
-      uploadProgress.startStep('product', 'Updating product in database...');
-      
+      uploadProgress.startStep("product", "Updating product in database...");
+
       const result = await updateProduct({
         variables: {
           id: productId,
@@ -624,29 +635,36 @@ export default function EditProductPage() {
       });
 
       if (result.data?.updateProduct?.success) {
-        uploadProgress.completeStep('product', 'Product updated successfully!');
-        
+        uploadProgress.completeStep("product", "Product updated successfully!");
+
         // Wait a moment to show completion
         setTimeout(() => {
           uploadProgress.closeModal();
           toast.success("Product updated successfully!", {
-            description: "Your product changes have been saved."
+            description: "Your product changes have been saved.",
           });
           router.push("/products");
         }, 1500);
       } else {
-        uploadProgress.errorStep('product', result.data?.updateProduct?.message || 'Failed to update product');
+        uploadProgress.errorStep(
+          "product",
+          result.data?.updateProduct?.message || "Failed to update product"
+        );
         toast.error("Failed to update product", {
-          description: result.data?.updateProduct?.message || "Unknown error occurred"
+          description:
+            result.data?.updateProduct?.message || "Unknown error occurred",
         });
       }
     } catch (error) {
       console.error("Update error:", error);
       const currentStepId = uploadProgress.currentStep;
-      uploadProgress.errorStep(currentStepId, error instanceof Error ? error.message : 'An error occurred');
-      
+      uploadProgress.errorStep(
+        currentStepId,
+        error instanceof Error ? error.message : "An error occurred"
+      );
+
       toast.error("Failed to update product", {
-        description: "An error occurred while updating the product"
+        description: "An error occurred while updating the product",
       });
     }
   };
@@ -656,18 +674,19 @@ export default function EditProductPage() {
       const result = await deleteProduct({ variables: { id: productId } });
       if (result.data?.deleteProduct?.success) {
         toast.success("Product deleted successfully!", {
-          description: "The product has been removed from your store."
+          description: "The product has been removed from your store.",
         });
         router.push("/products");
       } else {
         toast.error("Failed to delete product", {
-          description: result.data?.deleteProduct?.message || "Unknown error occurred"
+          description:
+            result.data?.deleteProduct?.message || "Unknown error occurred",
         });
       }
     } catch (error) {
       console.error("Delete error:", error);
       toast.error("Failed to delete product", {
-        description: "An error occurred while deleting the product"
+        description: "An error occurred while deleting the product",
       });
     }
   };
@@ -705,92 +724,116 @@ export default function EditProductPage() {
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Product Name" error={errors.name} required>
-                <ValidatedInput
-                  placeholder="Enter product name"
-                  value={formData.name}
-                  onChange={(e) => updateFormData("name", e.target.value)}
-                  error={errors.name}
-                />
-              </FormField>
-              <FormField label="SKU" error={errors.sku} required>
-                <ValidatedInput
-                  placeholder="Enter SKU"
-                  value={formData.sku}
-                  onChange={(e) => updateFormData("sku", e.target.value)}
-                  error={errors.sku}
-                />
-              </FormField>
+          <div className="space-y-3 sm:space-y-4 w-full">
+            <div className="w-full space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+              <div className="w-full">
+                <FormField label="Product Name" error={errors.name} required>
+                  <ValidatedInput
+                    placeholder="Enter product name"
+                    value={formData.name}
+                    onChange={(e) => updateFormData("name", e.target.value)}
+                    error={errors.name}
+                    className="h-10 w-full"
+                  />
+                </FormField>
+              </div>
+              <div className="w-full">
+                <FormField label="SKU" error={errors.sku} required>
+                  <ValidatedInput
+                    placeholder="Enter SKU"
+                    value={formData.sku}
+                    onChange={(e) => updateFormData("sku", e.target.value)}
+                    error={errors.sku}
+                    className="h-10 w-full"
+                  />
+                </FormField>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Price" error={errors.price} required>
-                <ValidatedInput
-                  type="number"
-                  placeholder="0.00"
-                  value={formData.price}
-                  onChange={(e) => updateFormData("price", e.target.value)}
-                  error={errors.price}
-                />
-              </FormField>
-              <FormField label="Stock" error={errors.stock} required>
-                <ValidatedInput
-                  type="number"
-                  placeholder="0"
-                  value={formData.stock}
-                  onChange={(e) => updateFormData("stock", e.target.value)}
-                  error={errors.stock}
-                />
-              </FormField>
+            <div className="w-full space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+              <div className="w-full">
+                <FormField label="Price" error={errors.price} required>
+                  <ValidatedInput
+                    type="number"
+                    placeholder="0.00"
+                    value={formData.price}
+                    onChange={(e) => updateFormData("price", e.target.value)}
+                    error={errors.price}
+                    className="h-10 w-full"
+                  />
+                </FormField>
+              </div>
+              <div className="w-full">
+                <FormField label="Stock" error={errors.stock} required>
+                  <ValidatedInput
+                    type="number"
+                    placeholder="0"
+                    value={formData.stock}
+                    onChange={(e) => updateFormData("stock", e.target.value)}
+                    error={errors.stock}
+                    className="h-10 w-full"
+                  />
+                </FormField>
+              </div>
             </div>
-            <FormField
-              label="Product Description"
-              error={errors.description}
-              required
-            >
-              <ValidatedTextarea
-                placeholder="Describe your product..."
-                className="min-h-[120px]"
-                value={formData.description}
-                onChange={(e) => updateFormData("description", e.target.value)}
+            <div className="w-full">
+              <FormField
+                label="Product Description"
                 error={errors.description}
-              />
-            </FormField>
+                required
+              >
+                <ValidatedTextarea
+                  placeholder="Describe your product..."
+                  className="min-h-[80px] sm:min-h-[100px] resize-none w-full"
+                  value={formData.description}
+                  onChange={(e) => updateFormData("description", e.target.value)}
+                  error={errors.description}
+                />
+              </FormField>
+            </div>
           </div>
         );
       case 2:
         return (
-          <div className="space-y-6">
-            <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4 w-full">
+            <div className="w-full">
               <FormField label="Key Features">
-                <div className="space-y-2">
-                  <div className="flex gap-2">
+                <div className="space-y-3 w-full">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full">
                     <ValidatedInput
                       placeholder="Add a feature and press Enter"
                       value={newFeature}
                       onChange={(e) => setNewFeature(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && addFeature()}
+                      className="flex-1 h-10 w-full sm:w-auto"
                     />
                     <Button
                       type="button"
                       onClick={addFeature}
                       disabled={!newFeature.trim()}
+                      className="w-full sm:w-auto h-10 px-4 flex-shrink-0"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-4 w-4 mr-2" />
+                      <span>Add Feature</span>
                     </Button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.features.map((feature, index) => (
-                      <Badge key={index} variant="secondary">
-                        {feature.feature}
-                        <X
-                          className="ml-1 h-3 w-3 cursor-pointer"
-                          onClick={() => removeFeature(index)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
+                  {formData.features.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-32 overflow-y-auto w-full">
+                      {formData.features.map((feature, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs flex items-center gap-1 py-1 px-2 max-w-full">
+                          <span className="truncate max-w-[100px] sm:max-w-[150px]">{feature.feature}</span>
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-destructive flex-shrink-0"
+                            onClick={() => removeFeature(index)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {formData.features.length === 0 && (
+                    <div className="text-xs sm:text-sm text-muted-foreground text-center py-4 w-full">
+                      No features added yet. Add features to highlight your product's key benefits.
+                    </div>
+                  )}
                 </div>
               </FormField>
             </div>
@@ -798,147 +841,163 @@ export default function EditProductPage() {
         );
       case 3:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Price" error={errors.price} required>
-                <ValidatedInput
-                  type="number"
-                  placeholder="0.00"
-                  value={formData.price}
-                  onChange={(e) => updateFormData("price", e.target.value)}
-                  error={errors.price}
-                />
-              </FormField>
-              <FormField label="Stock" error={errors.stock} required>
-                <ValidatedInput
-                  type="number"
-                  placeholder="0"
-                  value={formData.stock}
-                  onChange={(e) => updateFormData("stock", e.target.value)}
-                  error={errors.stock}
-                />
-              </FormField>
+          <div className="space-y-3 sm:space-y-4 w-full">
+            <div className="w-full space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+              <div className="w-full">
+                <FormField label="Price" error={errors.price} required>
+                  <ValidatedInput
+                    type="number"
+                    placeholder="0.00"
+                    value={formData.price}
+                    onChange={(e) => updateFormData("price", e.target.value)}
+                    error={errors.price}
+                    className="h-10 w-full"
+                  />
+                </FormField>
+              </div>
+              <div className="w-full">
+                <FormField label="Stock" error={errors.stock} required>
+                  <ValidatedInput
+                    type="number"
+                    placeholder="0"
+                    value={formData.stock}
+                    onChange={(e) => updateFormData("stock", e.target.value)}
+                    error={errors.stock}
+                    className="h-10 w-full"
+                  />
+                </FormField>
+              </div>
+            </div>
+            <div className="bg-muted/30 rounded-lg p-3 sm:p-4 w-full">
+              <div className="text-xs sm:text-sm text-muted-foreground">
+                <p className="mb-1"><strong>Price:</strong> Set competitive pricing for your product</p>
+                <p><strong>Stock:</strong> Current inventory count (can be updated later)</p>
+              </div>
             </div>
           </div>
         );
       case 4:
         return (
-          <div className="space-y-6">
-            <FormField label="Product Images" error={errors.images} required>
-              <div className="space-y-4">
-                {/* Existing Images */}
-                {formData.images.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {formData.images.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                          <Image
-                            src={image.url}
-                            alt={image.altText || `Product image ${index + 1}`}
-                            fill
-                            className="object-cover"
-                          />
-                          {image.isPrimary && (
-                            <div className="absolute top-2 left-2">
-                              <Badge className="bg-blue-100 text-blue-800">
-                                Primary
-                              </Badge>
-                            </div>
-                          )}
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => removeImage(index)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add New Images */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) =>
-                      e.target.files && addImages(e.target.files)
-                    }
-                    className="hidden"
-                    id="image-upload"
-                  />
-                  <label htmlFor="image-upload" className="cursor-pointer">
-                    <Plus className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-lg font-medium">Add Images</p>
-                    <p className="text-sm text-gray-500">
-                      Click to select images or drag and drop
-                    </p>
-                  </label>
-                </div>
-              </div>
-            </FormField>
-
-            <Separator />
-
-            <FormField label="Product Videos (Optional)">
-              <div className="space-y-4">
-                {/* Existing Videos */}
-                {formData.videos.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {formData.videos.map((video, index) => (
-                      <div key={index} className="relative group">
-                        <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
-                          <video
-                            src={video.url}
-                            className="w-full h-full object-cover"
-                            controls={false}
-                            muted
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                            <div className="text-white text-sm font-medium">
-                              Video {index + 1}
-                            </div>
+          <div className="space-y-3 sm:space-y-4 w-full">
+            <div className="w-full">
+              <FormField label="Product Images" error={errors.images} required>
+                <div className="space-y-3 w-full">
+                  {/* Existing Images */}
+                  {formData.images.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 w-full">
+                      {formData.images.map((image, index) => (
+                        <div key={index} className="relative group w-full">
+                          <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 w-full">
+                            <Image
+                              src={image.url}
+                              alt={image.altText || `Product image ${index + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                            {image.isPrimary && (
+                              <div className="absolute top-1 left-1">
+                                <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1 py-0">
+                                  Primary
+                                </Badge>
+                              </div>
+                            )}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                              onClick={() => removeImage(index)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => removeVideo(index)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
 
-                {/* Add New Videos */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                  <input
-                    type="file"
-                    accept="video/*"
-                    multiple
-                    onChange={(e) =>
-                      e.target.files && addVideos(e.target.files)
-                    }
-                    className="hidden"
-                    id="video-upload"
-                  />
-                  <label htmlFor="video-upload" className="cursor-pointer">
-                    <Plus className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-lg font-medium">Add Videos</p>
-                    <p className="text-sm text-gray-500">
-                      Click to select videos or drag and drop
-                    </p>
-                  </label>
+                  {/* Add New Images */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors w-full">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) =>
+                        e.target.files && addImages(e.target.files)
+                      }
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label htmlFor="image-upload" className="cursor-pointer block w-full">
+                      <Plus className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm font-medium">Add Images</p>
+                      <p className="text-xs text-gray-500">
+                        Click to select images
+                      </p>
+                    </label>
+                  </div>
                 </div>
-              </div>
-            </FormField>
+              </FormField>
+            </div>
+
+            <Separator className="my-2" />
+
+            <div className="w-full">
+              <FormField label="Product Videos (Optional)">
+                <div className="space-y-3 w-full">
+                  {/* Existing Videos */}
+                  {formData.videos.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 w-full">
+                      {formData.videos.map((video, index) => (
+                        <div key={index} className="relative group w-full">
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100 w-full">
+                            <video
+                              src={video.url}
+                              className="w-full h-full object-cover"
+                              controls={false}
+                              muted
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                              <div className="text-white text-xs font-medium">
+                                Video {index + 1}
+                              </div>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                              onClick={() => removeVideo(index)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add New Videos */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors w-full">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      multiple
+                      onChange={(e) =>
+                        e.target.files && addVideos(e.target.files)
+                      }
+                      className="hidden"
+                      id="video-upload"
+                    />
+                    <label htmlFor="video-upload" className="cursor-pointer block w-full">
+                      <Plus className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm font-medium">Add Videos</p>
+                      <p className="text-xs text-gray-500">
+                        Click to select videos
+                      </p>
+                    </label>
+                  </div>
+                </div>
+              </FormField>
+            </div>
           </div>
         );
       // Remove cases 5 and 6 since they're not being used and have missing fields
@@ -948,124 +1007,140 @@ export default function EditProductPage() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/products">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Products
-            </Link>
-          </Button>
-          <h2 className="text-3xl font-bold tracking-tight">Edit Product</h2>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDeleteModal(true)}
-            disabled={isLoading}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6">
-        {/* Progress Header */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>
-                  Step {currentStep} of {steps.length}
-                </CardTitle>
-                <CardDescription>
-                  {steps[currentStep - 1]?.title}
-                </CardDescription>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {Math.round(progress)}% Complete
-              </div>
-            </div>
-            <Progress value={progress} className="w-full" />
-          </CardHeader>
-        </Card>
-
-        {/* Step Navigation */}
-        <div className="flex justify-center">
-          <div className="flex items-center space-x-4 overflow-x-auto pb-2">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-                    currentStep >= step.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {step.id}
-                </div>
-                <div className="ml-2 text-sm">
-                  <div
-                    className={
-                      currentStep >= step.id
-                        ? "font-medium"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    {step.title}
-                  </div>
-                </div>
-                {index < steps.length - 1 && (
-                  <div className="w-8 h-px bg-muted mx-4" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Form Content */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{steps[currentStep - 1]?.title}</CardTitle>
-            <CardDescription>
-              {steps[currentStep - 1]?.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>{renderStepContent()}</CardContent>
-        </Card>
-
-        {/* Navigation Buttons */}
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            disabled={currentStep === 1}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Previous
-          </Button>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleSave} disabled={uploadProgress.isOpen}>
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
+    <div className="flex-1 w-full max-w-full overflow-hidden">
+      <div className="space-y-3 sm:space-y-4 p-2 sm:p-4 md:p-8 pt-3 sm:pt-6 w-full">
+        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center space-x-2 min-w-0 flex-1">
+            <Button variant="ghost" size="sm" asChild className="h-8 px-2 flex-shrink-0">
+              <Link href="/products">
+                <ArrowLeft className="mr-1 h-3 w-3" />
+                <span className="text-sm">Back</span>
+              </Link>
             </Button>
-            {currentStep === steps.length ? (
-              <Button onClick={handleSave} disabled={uploadProgress.isOpen}>
-                Update Product
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight truncate">Edit Product</h2>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteModal(true)}
+              disabled={isLoading}
+              className="h-8 px-3"
+            >
+              <Trash2 className="mr-1 h-3 w-3" />
+              <span className="text-sm">Delete</span>
+            </Button>
+          </div>
+        </div>
+
+        <div className="w-full space-y-3 sm:space-y-6">
+          {/* Progress Header */}
+          <Card className="w-full">
+            <CardHeader className="p-3 sm:p-6">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base sm:text-lg md:text-xl truncate">
+                    Step {currentStep} of {steps.length}
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-1 truncate">
+                    {steps[currentStep - 1]?.title}
+                  </CardDescription>
+                </div>
+                <div className="text-xs text-muted-foreground font-medium flex-shrink-0 ml-2">
+                  {Math.round(progress)}%
+                </div>
+              </div>
+              <Progress value={progress} className="w-full mt-3 h-2" />
+            </CardHeader>
+          </Card>
+
+          {/* Step Navigation */}
+          <div className="w-full overflow-hidden">
+            <div className="flex items-center space-x-1 overflow-x-auto scrollbar-hide pb-2 px-1">
+              {steps.map((step, index) => (
+                <div key={step.id} className="flex items-center flex-shrink-0 min-w-0">
+                  <div className="flex items-center space-x-1 min-w-0">
+                    <div
+                      className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium flex-shrink-0 ${
+                        currentStep >= step.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {step.id}
+                    </div>
+                    <div className="text-xs min-w-0 max-w-[50px] sm:max-w-[80px]">
+                      <div
+                        className={`truncate ${
+                          currentStep >= step.id
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        <span className="hidden sm:inline">{step.title.split(' ')[0]}</span>
+                        <span className="sm:hidden">{step.title.charAt(0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div className="w-2 sm:w-4 h-px bg-muted mx-1 flex-shrink-0" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Form Content */}
+          <Card className="w-full">
+            <CardHeader className="p-3 sm:p-6 pb-3">
+              <CardTitle className="text-base sm:text-lg truncate">{steps[currentStep - 1]?.title}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {steps[currentStep - 1]?.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-6 pt-0 w-full overflow-hidden">{renderStepContent()}</CardContent>
+          </Card>
+
+          {/* Navigation Buttons */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:gap-0 w-full">
+            {/* Primary Actions - Top on mobile, Right on desktop */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 order-1 sm:order-2">
+              <Button 
+                variant="outline" 
+                onClick={handleSave} 
+                disabled={uploadProgress.isOpen} 
+                className="w-full sm:w-auto h-10"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Save Changes</span>
+                <span className="sm:hidden">Save</span>
               </Button>
-            ) : (
-              <Button onClick={nextStep}>
-                Next
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            )}
+              {currentStep === steps.length ? (
+                <Button onClick={handleSave} disabled={uploadProgress.isOpen} className="w-full sm:w-auto h-10">
+                  <span className="hidden sm:inline">Update Product</span>
+                  <span className="sm:hidden">Update</span>
+                </Button>
+              ) : (
+                <Button onClick={nextStep} className="w-full sm:w-auto h-10">
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Previous Button - Bottom on mobile, Left on desktop */}
+            <Button
+              variant="outline"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className="w-full sm:w-auto h-10 order-2 sm:order-1"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Previous
+            </Button>
           </div>
         </div>
       </div>
-
+      
       {/* Upload Progress Modal */}
       <UploadProgressModal
         open={uploadProgress.isOpen}
