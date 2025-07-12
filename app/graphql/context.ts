@@ -74,7 +74,7 @@ export async function createContext({ request }: { request: NextRequest }): Prom
             data: {
               clerkId: userId,
               email,
-              role: 'SELLER',
+              role: 'BUYER',
             },
           });
           

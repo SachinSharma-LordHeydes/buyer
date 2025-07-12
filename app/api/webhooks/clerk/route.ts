@@ -77,7 +77,7 @@ export async function POST(req: Request) {
             where: { clerkId: id },
             data: {
               email,
-              role: "SELLER",
+              role: "BUYER",
             },
           });
           console.log("Updated existing user by clerkId:", result.clerkId);
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
               where: { email },
               data: {
                 clerkId: id,
-                role: "SELLER",
+                role: "BUYER",
               },
             });
             console.log("Updated user with new clerkId for existing email:", {
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
               data: {
                 clerkId: id,
                 email,
-                role: "SELLER",
+                role: "BUYER",
               },
             });
             console.log("Created new user:", result.clerkId);
